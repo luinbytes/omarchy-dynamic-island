@@ -2,7 +2,7 @@
 
 ## Problem
 
-This repository is an unborn standalone Git repository, not an Omarchy checkout. The scaffold must preserve the future first-party paths without copying Quattro host files or touching the active desktop. The pinned target is Omarchy Quattro commit `f99d33a8ddee7b36509a71a6d20d5d23355ce8b1`.
+This repository is a standalone Git repository, not an Omarchy checkout. The scaffold must preserve the future first-party paths without copying Quattro host files or touching the active desktop. The pinned target is Omarchy Quattro commit `f99d33a8ddee7b36509a71a6d20d5d23355ce8b1`.
 
 ## Usage from the caller
 
