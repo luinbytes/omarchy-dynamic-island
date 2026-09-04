@@ -32,6 +32,7 @@ omarchy-shell omarchy-island-fixture ping
 omarchy-shell omarchy-island-fixture compact
 omarchy-shell omarchy-island-fixture minimal
 omarchy-shell omarchy-island-fixture two
+omarchy-shell omarchy-island-fixture alerting
 omarchy-shell omarchy-island-fixture expanded
 omarchy-shell omarchy-island-fixture expiry
 omarchy-shell omarchy-island-fixture status
