@@ -1,55 +1,55 @@
 ---
 name: verify-omarchy-island
-description: Verify the Omarchy Island Quattro plugin scaffold and, once integrated, its quickbar activity surface in a disposable Omarchy VM.
+description: Verify the independent Omarchy Island user plugin package, activity model, and optional disposable-session runtime.
 ---
 
 # Verify Omarchy Island
 
-## Status
+## Scope
 
-The repository currently contains an offline Quattro scaffold. Real-surface proof is BLOCKED until the files are integrated into an Omarchy checkout and exercised by a disposable `omarchy-iso` VM. The active Omarchy desktop is never a verification target.
+Work in `luinbytes/omarchy-dynamic-island` on its task branch. This is a user plugin with ID `luinbytes.island`. Never copy it into Omarchy source or create an Omarchy fork for verification. Upstream checkouts are read-only references.
 
-## Launch
+## Portable checks
 
-There is no safe launch command for this standalone scaffold. It is not a complete Omarchy checkout and must not start a second Quickshell process. After integration, launch through the sibling `omarchy-iso` checkout with its `omarchy-iso-test` command and wait for the guest `omarchy-shell` readiness signal. Stop the VM through the same harness after evidence is captured.
-
-## Doctor
-
-Run the offline doctor before any work:
+Run from the plugin repository:
 
 ```bash
-OMARCHY_UPSTREAM="${OMARCHY_UPSTREAM:-../omarchy}"
-if ! git -C "$OMARCHY_UPSTREAM" rev-parse --git-dir >/dev/null 2>&1; then
-  echo "OMARCHY_UPSTREAM must name an Omarchy checkout or sibling ../omarchy checkout" >&2
-  exit 1
-fi
-node scripts/verify-scaffold.mjs --upstream "$OMARCHY_UPSTREAM"
+node scripts/verify-scaffold.mjs
 ```
 
-This checks the scaffold files, model cases, manifest, pinned Quattro host commit, and QML syntax. It does not launch a shell. For an integrated checkout, also confirm the host commit with `git rev-parse HEAD` and use the VM harness health check before driving it.
+This checks the root manifest, packaged entry points, and model behavior. If an Omarchy checkout and QML lint tools are available, use the verifier's `--upstream PATH` option for compatibility checks. Missing runtime tools must remain explicit.
 
-## Drive
+## Disposable-session QA
 
-The available drive is the portable model fixture:
+Use an existing disposable Omarchy Quattro session. Install this branch using the root [README](../../../README.md). Run `omarchy plugin validate .` from its installed directory before enabling `luinbytes.island`.
+
+Do not patch the host shell or start a second Quickshell process. Inspect the existing shell logs for component errors. The widget is hidden in this increment, so expect the existing bar to retain its appearance.
+
+To exercise fixed scenarios, start the disposable shell session with `OMARCHY_ISLAND_FIXTURES=1` in its environment. The plugin loads the fixture only with this explicit opt-in. Run against that session's existing shell:
 
 ```bash
-node test/island/run-activity-model.js
+omarchy-shell omarchy-island-fixture ping
+omarchy-shell omarchy-island-fixture compact
+omarchy-shell omarchy-island-fixture minimal
+omarchy-shell omarchy-island-fixture two
+omarchy-shell omarchy-island-fixture expanded
+omarchy-shell omarchy-island-fixture expiry
+omarchy-shell omarchy-island-fixture status
+omarchy-shell omarchy-island-fixture malformed
 ```
 
-It exercises publication, replacement, deterministic selection, target screens, transient restoration, expiry, expansion, anchor loss, removal, symbolic invocation, and hostile payload rejection. No user-facing visual drive is available until the plugin is integrated.
+Allow expiry to elapse before checking status. Expect bounded PASS output for valid scenarios, idle after expiry, and REJECT output for malformed input. Rescan plugins and inspect logs for duplicate IPC targets. Disable the plugin and confirm the fixture becomes unavailable. Restart the session without the fixture environment variable and confirm the fixture is absent.
 
-After integration, drive one mapped feature per run through the disposable VM's fixture IPC. Publish only bounded, synthetic activity snapshots. Use the running shell's existing IPC surface and inspect the resulting layer and state logs. Never launch a standalone Quickshell process or drive the active desktop.
+The fixture accepts fixed scenarios only. It is not a public activity API.
 
-## Evidence
+## Evidence and cleanup
 
-Keep the model output, verifier output, VM logs, screenshots, and short animation recordings under a run-specific directory such as `/tmp/omarchy-island-verification/<run-id>/`. Capture the command and resulting state for every scenario. For visual work, capture idle, compact, alerting, expanded, collapse, and reduced-motion states. Inspect screenshots for clipping, overlap, alignment, focus, and stale input masks. Record a short video for transitions. Verify symbolic action effects and activity removal in logs alongside the visible state.
+Record commands, responses, shell logs, and a screenshot of the unchanged bar. Portable checks do not prove QML startup. No renderer or animation pass is possible until those features exist.
 
-Source inspection and model tests do not replace real-surface proof. A visual pass requires a disposable VM running an integrated Omarchy checkout. Manual visual acceptance remains separate from automated evidence.
+Stop only sessions, VMs, and supporting processes started by the verification run. Check their process and listener state after stopping them. Preserve intentional evidence and the user's existing sessions.
 
-## Cleanup
+## Feature references
 
-The current offline commands create no long-running process. For VM verification, stop only the VM, recorder, and watchers started by the run through their owning harness. Do not kill by process name. Preserve the run directory and its evidence, then confirm owned descendants and listeners are gone.
-
-## Helpers
-
-The repeatable scaffold helper is `scripts/verify-scaffold.mjs`. Run it from the repository root. Add `--upstream PATH` to enable the pinned-host and `qmllint` checks. It never launches Quickshell.
+- [Activity contract](features/activity-contract.md)
+- [Quickbar anchor](features/quickbar-anchor.md)
+- [Live publishers](features/live-activity-publishers.md)

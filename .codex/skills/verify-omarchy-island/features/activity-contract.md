@@ -1,17 +1,9 @@
 # Activity contract
 
-## Sub-features
+The pure reducer handles publication, revision replacement, primary and secondary selection, screen targeting, transient restoration, expiry, expansion, collapse, removal, and symbolic invocation.
 
-Publication, revision replacement, deterministic primary and secondary selection, target screens, transient pulse restoration, explicit expiry, expansion, collapse, selected removal, anchor-loss collapse, and symbolic owner invocation.
+Run `node test/island/run-activity-model.js` for portable cases and `node scripts/verify-scaffold.mjs` for the package gate.
 
-## How to get to it (user POV)
+The plugin service owns state and time. Its local broker owns neither. The reducer never reads clocks or runtime objects.
 
-The user sees this contract through a future activity presented in the Omarchy quickbar. The current scaffold exposes it only through its portable fixture.
-
-## Driving it with the Node fixture
-
-Run `node test/island/run-activity-model.js`. The runner prints one `ok` line per case and exits nonzero on the first suite failure. Set `OMARCHY_UPSTREAM` to an Omarchy checkout, or use a sibling `../omarchy` checkout, then run `node scripts/verify-scaffold.mjs --upstream "$OMARCHY_UPSTREAM"` for the complete scaffold gate.
-
-## Gotchas
-
-The reducer cannot read clocks, QML objects, timers, or Node APIs. Every timestamp comes from the test or service context. A real-surface pass is BLOCKED until the plugin is integrated into a disposable Omarchy VM.
+For runtime proof, use the opt-in fixture in a disposable session as described in [the verification guide](../SKILL.md). Portable success does not prove QML loading or timer behavior.

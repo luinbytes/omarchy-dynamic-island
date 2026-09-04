@@ -1,5 +1,7 @@
 # Omarchy Island: research, architecture, and implementation plan
 
+> Historical research, superseded for implementation and delivery. The user clarified that this project is an independent plugin in `luinbytes/omarchy-dynamic-island`, with ID `luinbytes.island`. The first-party namespace, host edits, upstream branches, and fork proposals below are rejected. Follow the current [plugin delivery plan](omarchy-island-delivery-plan.md) and [architecture](scaffold-architecture.md). The visual research remains reference material, not proof of implemented features.
+
 Status: design proposal
 Target: first-party Omarchy Quattro plugin
 Proposed product name: **Omarchy Island**

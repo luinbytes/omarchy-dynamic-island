@@ -4,7 +4,7 @@ import qs.Ui as Ui
 Ui.BarWidget {
   id: root
 
-  moduleName: "omarchy.island"
+  moduleName: "luinbytes.island"
   readonly property bool opened: false
   property real slotWidth: 0
 

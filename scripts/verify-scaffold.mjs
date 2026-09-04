@@ -4,17 +4,18 @@ import { fileURLToPath } from "node:url"
 import { spawnSync } from "node:child_process"
 
 const root = path.resolve(path.dirname(fileURLToPath(import.meta.url)), "..")
-const pinnedCommit = "f99d33a8ddee7b36509a71a6d20d5d23355ce8b1"
 const requiredFiles = [
   "README.md",
-  "shell/plugins/island/manifest.json",
+  "manifest.json",
   "shell/plugins/island/ActivityModel.js",
   "shell/plugins/island/Service.qml",
   "shell/plugins/island/BarWidget.qml",
-  "shell/services/ActivityBroker.qml",
+  "shell/plugins/island/ActivityBroker.qml",
+  "shell/plugins/island/IslandFixture.qml",
   "test/island/activity-model-cases.js",
   "test/island/run-activity-model.js",
   "test/island/manifest-contract.js",
+  "test/island/plugin-contract.js",
   ".codex/skills/verify-omarchy-island/SKILL.md",
   ".codex/skills/verify-omarchy-island/features/README.md",
   ".codex/skills/verify-omarchy-island/features/activity-contract.md",
@@ -60,25 +61,35 @@ for (const relativePath of requiredFiles) requireFile(relativePath)
 
 if (run(process.execPath, ["test/island/run-activity-model.js"])) console.log("ok - activity model cases")
 if (run(process.execPath, ["test/island/manifest-contract.js"])) console.log("ok - manifest contract")
+if (run(process.execPath, ["test/island/plugin-contract.js"])) console.log("ok - plugin contract")
 
 if (upstream) {
   const upstreamGit = spawnSync("git", ["-C", upstream, "rev-parse", "HEAD"], { encoding: "utf8" })
-  const actualCommit = (upstreamGit.stdout || "").trim()
-  if (upstreamGit.status !== 0 || actualCommit !== pinnedCommit) fail("upstream is not pinned to " + pinnedCommit)
-  else console.log("ok - upstream pinned to " + pinnedCommit)
+  if (upstreamGit.status !== 0) {
+    fail("upstream is not a git checkout")
+  } else {
+    const validator = path.join(upstream, "bin/omarchy-plugin-validate")
+    if (fs.existsSync(validator)) {
+      if (run("bash", [validator, root])) console.log("ok - upstream plugin validator")
+    } else {
+      fail("upstream plugin validator is missing")
+    }
 
-  for (const relativePath of ["shell/shell.qml", "shell/services/PluginRegistry.qml", "shell/Ui/BarWidget.qml", "shell/plugins/services/media/manifest.json", "shell/plugins/services/media/Service.qml", "shell/plugins/services/media/BarWidget.qml", "shell/plugins/osd/OsdModel.js"]) {
-    if (!fs.existsSync(path.join(upstream, relativePath))) fail("upstream host file missing " + relativePath)
+    const qmlLintProbe = spawnSync("qmllint", ["--version"], { encoding: "utf8" })
+    if (qmlLintProbe.error) {
+      console.log("skip - qmllint is unavailable")
+    } else {
+      const qmlFiles = [
+        path.join(root, "shell/plugins/island/ActivityBroker.qml"),
+        path.join(root, "shell/plugins/island/Service.qml"),
+        path.join(root, "shell/plugins/island/BarWidget.qml"),
+        path.join(root, "shell/plugins/island/IslandFixture.qml")
+      ]
+      if (run("qmllint", ["-I", path.join(upstream, "shell"), ...qmlFiles])) console.log("ok - qmllint")
+    }
   }
-
-  const qmlFiles = [
-    path.join(root, "shell/plugins/island/Service.qml"),
-    path.join(root, "shell/plugins/island/BarWidget.qml"),
-    path.join(root, "shell/services/ActivityBroker.qml")
-  ]
-  if (run("qmllint", ["-I", path.join(upstream, "shell"), ...qmlFiles])) console.log("ok - qmllint")
 } else {
-  console.log("ok - upstream and qmllint checks skipped")
+  console.log("skip - optional upstream validator and qmllint checks were not requested")
 }
 
 if (process.exitCode) process.exit(process.exitCode)

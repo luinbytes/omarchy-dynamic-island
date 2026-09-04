@@ -1,11 +1,11 @@
 import QtQuick
+import Quickshell
 import "ActivityModel.js" as ActivityModel
 
 Item {
   id: root
 
-  property QtObject shell: null
-  property var activityBroker: null
+  readonly property ActivityBroker activityBroker: ActivityBroker {}
   property string focusedScreen: ""
   property var state: ActivityModel.initialState()
   readonly property var activitiesByKey: root.state.activitiesByKey
@@ -14,6 +14,11 @@ Item {
 
   signal commandRejected(string reason)
   signal ownerActionRequested(string key, string actionId)
+
+  function resetFixtureState() {
+    root.state = ActivityModel.initialState()
+    return root.state
+  }
 
   function receive(command) {
     return dispatch(command, Date.now(), root.focusedScreen)
@@ -78,6 +83,16 @@ Item {
     onTriggered: {
       root.tick()
       if (root.nextWakeAt !== null) wakeTimer.restart()
+    }
+  }
+
+  Loader {
+    active: Quickshell.env("OMARCHY_ISLAND_FIXTURES") === "1"
+    sourceComponent: Component {
+      IslandFixture {
+        service: root
+        activityBroker: root.activityBroker
+      }
     }
   }
 }
