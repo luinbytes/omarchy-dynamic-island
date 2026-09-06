@@ -32,10 +32,16 @@ PanelWindow {
   readonly property var peekMeasurement: {
     var content = root.activePeekContent
     if (!content || !content.key) return { key: "", width: 0, height: 0 }
+    var barSize = root.bar && root.bar.barSize ? Math.max(0, root.bar.barSize) : 0
+    var horizontal = root.barPosition === "top" || root.barPosition === "bottom"
+    var textHeight = peekTitleTextMetrics.boundingRect.height
+      + (content.value ? 2 + peekValueTextMetrics.boundingRect.height : 0)
+    var measuredHeight = Math.ceil(Math.max(18, textHeight) + 24)
+    var clearanceHeight = horizontal ? Math.ceil(barSize + 17) : 0
     return {
       key: content.key,
       width: Math.ceil(Math.max(peekTitleTextMetrics.advanceWidth, peekValueTextMetrics.advanceWidth) + 50),
-      height: 68
+      height: Math.max(measuredHeight, clearanceHeight)
     }
   }
   readonly property var metrics: {

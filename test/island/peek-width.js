@@ -8,8 +8,8 @@ function rect(width, height) {
   return { x: 960 - width / 2, y: 2, width, height, radius: Math.min(24, width / 2, height / 2) }
 }
 
-function closedIntent(key, width) {
-  const target = rect(width, 68)
+function closedIntent(key, width, height = 48) {
+  const target = rect(width, height)
   return {
     edge: "top",
     bounds,
@@ -19,12 +19,12 @@ function closedIntent(key, width) {
       content: { key, label: key, value: "Status" },
       placement: "closed",
       rect: target,
-      size: { width, height: 68 }
+      size: { width, height }
     }
   }
 }
 
-function belowIntent(key, width) {
+function belowIntent(key, width, height = 48) {
   const main = { x: 807, y: 2, width: 306, height: 228, radius: 28 }
   return {
     edge: "top",
@@ -34,8 +34,8 @@ function belowIntent(key, width) {
       key,
       content: { key, label: key, value: "Status" },
       placement: "below",
-      rect: { x: 960 - width / 2, y: 236, width, height: 68, radius: 24 },
-      size: { width, height: 68 }
+      rect: { x: 960 - width / 2, y: 236, width, height, radius: 24 },
+      size: { width, height }
     }
   }
 }
@@ -49,7 +49,7 @@ function tick(state, seconds, count) {
 let state = MotionModel.reconcile(MotionModel.initialState(), closedIntent("peek:first", 132), true)
 let visual = MotionModel.renderFrame(state)
 assert.equal(Math.round(visual.peek.rect.width), 132, "closed peek keeps its measured content width")
-assert.equal(Math.round(visual.peek.rect.height), 68, "closed peek keeps the fixed shallow height")
+assert.equal(Math.round(visual.peek.rect.height), 48, "closed peek keeps its measured shallow height")
 
 state = MotionModel.reconcile(state, closedIntent("peek:second", 244), false)
 visual = MotionModel.renderFrame(state)
@@ -105,12 +105,12 @@ for (const edge of ["top", "bottom", "left", "right"]) {
         summary: { icon: tool, label: tool, value: "Status" }
       }
     }
-    raw.peekMeasurement = { key: active.candidate.id, width, height: 68 }
+    raw.peekMeasurement = { key: active.candidate.id, width, height: 48 }
     const compact = ViewModel.geometryFor("compact", false, ViewModel.screenMetrics(raw), false).card
     const closed = ViewModel.projectPeekFrame({ phase: "compact", geometry: { card: compact } }, active, "DP-1", raw)
     assert.equal(closed.peek.placement, "closed", tool + " creates a closed peek")
     assert.equal(closed.peek.size.width, width, tool + " keeps its measured width")
-    assert.equal(closed.peek.size.height, 68, tool + " retains the shared shallow height")
+    assert.equal(closed.peek.size.height, 48, tool + " retains its measured shallow height")
     const main = ViewModel.geometryFor("expanded", false, ViewModel.screenMetrics(raw), false).card
     const below = ViewModel.projectPeekFrame({ phase: "expanded", isOwner: true, geometry: { card: main } }, active, "DP-1", raw)
     assert.equal(below.peek.placement, "below", tool + " creates an independent below-main peek")
@@ -129,18 +129,28 @@ const constrainedActive = {
   targetScreens: ["DP-1"],
   candidate: { id: "peek:wide", tool: "notifications", entityKey: "notification:wide", summary: { label: "Wide", value: "Status" } }
 }
-constrained.peekMeasurement = { key: constrainedActive.candidate.id, width: 900, height: 68 }
+constrained.peekMeasurement = { key: constrainedActive.candidate.id, width: 900, height: 48 }
 const constrainedFrame = ViewModel.projectPeekFrame({ phase: "compact" }, constrainedActive, "DP-1", constrained)
 assert.equal(constrainedFrame.peek.size.width, 304, "peek width caps only at the available screen inset")
 assert.equal(ViewModel.projectPeekFrame({ phase: "compact" }, constrainedActive, "DP-1", Object.assign({}, constrained, {
-  peekMeasurement: { key: "other", width: 900, height: 68 }
+  peekMeasurement: { key: "other", width: 900, height: 48 }
 })).peek, undefined, "a mismatched measurement key does not use a stale width")
 
 const taperMetrics = metrics("top")
 assert.equal(ViewModel.activityOutline({ x: 894, y: 0, width: 132, height: 68, radius: 24 }, taperMetrics).contentSafe, true,
   "a fully exposed closed peek keeps its payload")
+assert.equal(ViewModel.activityOutline({ x: 894, y: 0, width: 132, height: 44, radius: 22 }, taperMetrics).contentSafe, true,
+  "a 44px closed peek remains content-safe beside a 26px bar")
 assert.equal(ViewModel.activityOutline({ x: 894, y: 2, width: 132, height: 30, radius: 5 }, taperMetrics).contentSafe, false,
   "a closing closed peek suppresses its payload at the rounded tip")
+const thirtyOnePixelBar = metrics("top")
+thirtyOnePixelBar.bar.size = 31
+assert.equal(ViewModel.activityOutline({ x: 894, y: 0, width: 132, height: 48, radius: 24 }, thirtyOnePixelBar).contentSafe, true,
+  "a 48px floor remains content-safe beside a 31px bar")
+assert.equal(ViewModel.activityOutline({ x: 894, y: 0, width: 132, height: 47, radius: 23 }, thirtyOnePixelBar).contentSafe, true,
+  "the 31px bar boundary is safe at 16px exposed depth")
+assert.equal(ViewModel.activityOutline({ x: 894, y: 0, width: 132, height: 46, radius: 23 }, thirtyOnePixelBar).contentSafe, false,
+  "the 31px bar boundary suppresses content below 16px exposed depth")
 assert.equal(ViewModel.attachedPeekOutline({ x: 894, y: 236, width: 132, height: 68, radius: 24 }, taperMetrics).contentSafe, true,
   "a fully exposed attached peek keeps its payload")
 assert.equal(ViewModel.attachedPeekOutline({ x: 894, y: 236, width: 132, height: 10, radius: 5 }, taperMetrics).contentSafe, false,

@@ -387,7 +387,7 @@ function tipPerimeter(body, edge, bounds, boundary, shoulderRadius, amount, atta
 }
 
 function taperAmount(depth) {
-  var progress = clamp(depth / 32, 0, 1)
+  var progress = clamp(depth / 16, 0, 1)
   return 1 - progress * progress * (3 - 2 * progress)
 }
 
