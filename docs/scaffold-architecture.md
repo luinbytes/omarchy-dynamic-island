@@ -12,7 +12,7 @@ The stock Quattro loader creates the service. `Service.qml` creates its own stat
 
 The reducer receives time and screen context from its caller. It never reads the clock, starts a timer, or accesses QML objects. Actions produce symbolic owner effects. The service applies accepted state and emits those effects for future publishers.
 
-The broker forwards commands without retaining activity state. Keeping it beside the service makes it part of the plugin's lifecycle. The hidden `BarWidget.qml` does not create another service or reserve bar space.
+The broker forwards commands without retaining activity state. Keeping it beside the service makes it part of the plugin's lifecycle. `BarWidget.qml` resolves that service and owns its screen-local renderer. It reserves a stable slot while activities are present. See the [renderer design](renderer-architecture.md).
 
 ## Packaging decision
 
@@ -24,4 +24,4 @@ The reserved `omarchy.*` namespace is not valid for user-installed plugins. The 
 
 The portable verifier checks the manifest and activity behavior. Optional checks can read an unmodified Omarchy checkout for compatibility and QML imports. Such reads must not alter that checkout.
 
-Disposable-session QA must install this repository as a user plugin and exercise the existing shell process. Runtime validation is still required. Renderer, animation, live publisher, and user interaction work remains separate from the packaging correction.
+Runtime QA installs this repository as a user plugin and exercises the existing shell process. The fixture timer and reducer have passed on Omarchy. The first renderer requires its own geometry, input, and display checks. Live publisher integration and full visual parity remain unfinished.

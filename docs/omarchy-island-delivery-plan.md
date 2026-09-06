@@ -13,11 +13,13 @@ Deliver an independent user plugin from `luinbytes/omarchy-dynamic-island` on `f
 - Install the branch in a disposable Omarchy session using the README instructions.
 - Verify service startup, fixed fixture behavior, disable, restart, and clean teardown in that session.
 
-Portable checks and packaging are available. Shell runtime acceptance remains outstanding until it is exercised on Omarchy.
+Portable checks, packaging, and the live fixture timer scenarios have passed on Omarchy. Fixture teardown removes its IPC target when the plugin is disabled.
 
 ## Renderer
 
-Build the visible quickbar activity widget and its expanded presentation within the plugin. Verify geometry, keyboard access, reduced motion, multiple monitors, and input behavior using real screenshots and interaction evidence. The current hidden widget is not a finished renderer.
+The first renderer uses a native bar widget and a plugin-owned Quickshell window. Verify geometry, keyboard access, reduced motion, multiple monitors, and input behavior using real screenshots and interaction evidence. The [renderer design](renderer-architecture.md) records ownership and acceptance limits. Full visual parity remains unfinished.
+
+The [first renderer QA record](renderer-qa.md) documents the completed top-bar, dual-monitor checks and remaining acceptance limits. The temporary installation was removed after verification.
 
 ## Publishers
 

@@ -21,7 +21,8 @@ var ACTIVITY_KEYS = {
   compact: true,
   minimal: true,
   expanded: true,
-  actions: true
+  actions: true,
+  media: true
 }
 
 var COMMAND_KEYS = {
@@ -58,6 +59,17 @@ var ACTION_KEYS = {
 var TARGET_KEYS = {
   mode: true,
   screen: true
+}
+
+var MEDIA_KEYS = {
+  trackToken: true,
+  artUrl: true,
+  title: true,
+  artist: true,
+  playing: true,
+  positionSeconds: true,
+  durationSeconds: true,
+  canSeek: true
 }
 
 var QObjectKeys = {
@@ -115,6 +127,17 @@ function optionalText(value, maximum, label) {
   return { ok: true, value: value }
 }
 
+function safeArtworkUrl(value, label) {
+  if (value === undefined) return { ok: true, value: undefined }
+  var textResult = safeText(value, 2048, label)
+  if (!textResult.ok) return textResult
+  if (/\s/.test(value)) return { ok: false, error: label + " cannot contain whitespace" }
+  if (/^file:\/\/\/[^\s]+$/.test(value)) return { ok: true, value: value }
+  var remote = /^(https?):\/\/([^\/?#]+)(?:[\/?#][^\s]*)?$/.exec(value)
+  if (!remote || remote[2].indexOf("@") !== -1) return { ok: false, error: label + " has an unsupported URL" }
+  return { ok: true, value: value }
+}
+
 function safeIdentity(value, label) {
   var result = safeText(value, 128, label)
   if (!result.ok) return result
@@ -122,7 +145,9 @@ function safeIdentity(value, label) {
   return result
 }
 
-function serializable(value, path, seen) {
+function serializable(value, path, seen, depth) {
+  depth = depth || 0
+  if (depth > 32) return { ok: false, error: path + " is too deeply nested" }
   if (value === null || typeof value === "string" || typeof value === "boolean") return { ok: true }
   if (typeof value === "number") return numberIsFinite(value) ? { ok: true } : { ok: false, error: path + " must be finite" }
   if (typeof value === "function") return { ok: false, error: path + " cannot be a function" }
@@ -138,7 +163,7 @@ function serializable(value, path, seen) {
   }
   for (var i = 0; i < keys.length; i++) {
     var child = value[keys[i]]
-    var result = serializable(child, path + "[" + keys[i] + "]", seen)
+    var result = serializable(child, path + "[" + keys[i] + "]", seen, depth + 1)
     if (!result.ok) return result
   }
   seen.pop()
@@ -244,6 +269,45 @@ function validateActions(value) {
   return { ok: true, value: result }
 }
 
+function validateMedia(value) {
+  if (value === undefined) return { ok: true, value: undefined }
+  if (!isPlainObject(value)) return { ok: false, error: "media must be a plain object" }
+  var fields = rejectUnknown(value, MEDIA_KEYS, "media")
+  if (!fields.ok) return fields
+  var trackToken = safeText(value.trackToken, 512, "media.trackToken")
+  if (!trackToken.ok) return trackToken
+  var title = safeText(value.title, 256, "media.title")
+  if (!title.ok) return title
+  var artist = optionalText(value.artist, 256, "media.artist")
+  if (!artist.ok) return artist
+  var artUrl = safeArtworkUrl(value.artUrl, "media.artUrl")
+  if (!artUrl.ok) return artUrl
+  if (typeof value.playing !== "boolean") return { ok: false, error: "media.playing must be boolean" }
+  if (typeof value.canSeek !== "boolean") return { ok: false, error: "media.canSeek must be boolean" }
+  var hasPosition = value.positionSeconds !== undefined
+  var hasDuration = value.durationSeconds !== undefined
+  if (hasPosition !== hasDuration) return { ok: false, error: "media position and duration must be paired" }
+  var result = {
+    trackToken: trackToken.value,
+    title: title.value,
+    playing: value.playing,
+    canSeek: value.canSeek
+  }
+  if (artist.value !== undefined) result.artist = artist.value
+  if (artUrl.value !== undefined) result.artUrl = artUrl.value
+  if (hasPosition) {
+    if (!numberIsFinite(value.positionSeconds) || !numberIsFinite(value.durationSeconds)
+      || value.positionSeconds < 0 || value.durationSeconds <= 0 || value.positionSeconds > value.durationSeconds) {
+      return { ok: false, error: "media time is invalid" }
+    }
+    result.positionSeconds = value.positionSeconds
+    result.durationSeconds = value.durationSeconds
+  } else if (value.canSeek) {
+    return { ok: false, error: "media.canSeek requires valid time" }
+  }
+  return { ok: true, value: result }
+}
+
 function validateActivity(raw, nowMs) {
   var basic = serializable(raw, "activity", [])
   if (!basic.ok) return basic
@@ -269,7 +333,7 @@ function validateActivity(raw, nowMs) {
   if (!integer(expiresAt) || expiresAt < 0 || expiresAt > (Number.MAX_SAFE_INTEGER || 9007199254740991)) return { ok: false, error: "activity.expiresAt must be a nonnegative integer" }
   if (expiresAt !== 0 && expiresAt <= nowMs) return { ok: false, error: "activity publication has already expired" }
   var priority = raw.priority === undefined ? "normal" : raw.priority
-  if (!own(PRIORITY_RANK, priority)) return { ok: false, error: "activity.priority is unsupported" }
+  if (typeof priority !== "string" || !own(PRIORITY_RANK, priority)) return { ok: false, error: "activity.priority is unsupported" }
   var relevance = raw.relevance === undefined ? 0 : raw.relevance
   if (!numberIsFinite(relevance) || relevance < 0 || relevance > 100) return { ok: false, error: "activity.relevance must be between 0 and 100" }
   var transientMs = raw.transientMs === undefined ? 0 : raw.transientMs
@@ -290,6 +354,8 @@ function validateActivity(raw, nowMs) {
   if (!expanded.ok) return expanded
   var actions = validateActions(raw.actions)
   if (!actions.ok) return actions
+  var media = validateMedia(raw.media)
+  if (!media.ok) return media
   return {
     ok: true,
     value: {
@@ -308,7 +374,8 @@ function validateActivity(raw, nowMs) {
       compact: compact.value === undefined ? null : compact.value,
       minimal: minimal.value === undefined ? null : minimal.value,
       expanded: expanded.value === undefined ? null : expanded.value,
-      actions: actions.value
+      actions: actions.value,
+      media: media.value === undefined ? null : media.value
     }
   }
 }
@@ -456,6 +523,12 @@ function eligible(activity, focusedScreen) {
   return activity.target.screen === focusedScreen
 }
 
+function activityExpired(activity, nowMs) {
+  if (!activity) return false
+  if (activity.expiresAt !== 0 && activity.expiresAt <= nowMs) return true
+  return integer(activity.updatedAt) && integer(activity.transientMs) && activity.transientMs > 0 && activity.updatedAt + activity.transientMs <= nowMs
+}
+
 function compareEntries(a, b) {
   var priorityDelta = PRIORITY_RANK[b.activity.priority] - PRIORITY_RANK[a.activity.priority]
   if (priorityDelta !== 0) return priorityDelta
@@ -470,13 +543,14 @@ function compareEntries(a, b) {
   return 0
 }
 
-function selection(map, focusedScreen, nowMs) {
+function selection(map, focusedScreen, nowMs, excludedKey) {
   var entries = []
   var keys = Object.keys(map)
   for (var i = 0; i < keys.length; i++) {
+    if (excludedKey !== undefined && keys[i] === excludedKey) continue
     var activity = map[keys[i]]
     if (!eligible(activity, focusedScreen)) continue
-    if (activity.expiresAt !== 0 && activity.expiresAt <= nowMs) continue
+    if (activityExpired(activity, nowMs)) continue
     entries.push({ key: keys[i], activity: activity })
   }
   entries.sort(compareEntries)
@@ -527,14 +601,45 @@ function presentationFor(map, oldPresentation, focusedScreen, nowMs, reason) {
   }
 }
 
+function expandedPresentationFor(map, oldPresentation, focusedScreen, nowMs) {
+  var chosen = selection(map, oldPresentation.ownerScreen || focusedScreen, nowMs)
+  return {
+    phase: "expanded",
+    primaryKey: chosen.primaryKey,
+    secondaryKey: chosen.secondaryKey,
+    selectedKey: oldPresentation.selectedKey,
+    underlyingKey: null,
+    ownerScreen: oldPresentation.ownerScreen,
+    reason: oldPresentation.reason,
+    leaseToken: oldPresentation.leaseToken
+  }
+}
+
+function alertingPresentationFor(map, oldPresentation, pulseKey, focusedScreen, nowMs) {
+  var underlying = selection(map, focusedScreen, nowMs, pulseKey)
+  return {
+    phase: "alerting",
+    primaryKey: pulseKey,
+    secondaryKey: underlying.primaryKey,
+    selectedKey: pulseKey,
+    underlyingKey: underlying.primaryKey,
+    ownerScreen: oldPresentation.ownerScreen,
+    reason: oldPresentation.reason || "pulse",
+    leaseToken: oldPresentation.leaseToken
+  }
+}
+
 function pruneExpired(state, nowMs) {
+  var changed = false
   var keys = Object.keys(state.activitiesByKey)
   for (var i = 0; i < keys.length; i++) {
     var activity = state.activitiesByKey[keys[i]]
-    if (activity.expiresAt !== 0 && activity.expiresAt <= nowMs) {
+    if (activityExpired(activity, nowMs)) {
       delete state.activitiesByKey[keys[i]]
+      changed = true
     }
   }
+  return changed
 }
 
 function nextWakeAt(state) {
@@ -544,14 +649,10 @@ function nextWakeAt(state) {
   var keys = Object.keys(map)
   for (var i = 0; i < keys.length; i++) {
     var activity = map[keys[i]]
-    if (!activity || !integer(activity.expiresAt) || activity.expiresAt === 0) continue
-    if (wakeAt === null || activity.expiresAt < wakeAt) wakeAt = activity.expiresAt
-  }
-  var presentation = state.presentation
-  if (isPlainObject(presentation) && presentation.phase === "alerting" && presentation.selectedKey) {
-    var pulse = own(map, presentation.selectedKey) ? map[presentation.selectedKey] : null
-    if (pulse && integer(pulse.updatedAt) && integer(pulse.transientMs) && pulse.transientMs > 0) {
-      var leaseAt = pulse.updatedAt + pulse.transientMs
+    if (!activity) continue
+    if (integer(activity.expiresAt) && activity.expiresAt !== 0 && (wakeAt === null || activity.expiresAt < wakeAt)) wakeAt = activity.expiresAt
+    if (integer(activity.updatedAt) && integer(activity.transientMs) && activity.transientMs > 0) {
+      var leaseAt = activity.updatedAt + activity.transientMs
       if (numberIsFinite(leaseAt) && (wakeAt === null || leaseAt < wakeAt)) wakeAt = leaseAt
     }
   }
@@ -582,6 +683,7 @@ function reduce(previousState, rawCommand, context) {
   var command = commandResult.value
   var focusedScreen = context && typeof context.focusedScreen === "string" ? context.focusedScreen : ""
   var state = copyState(previousState)
+  var expansionScreen = state.presentation.ownerScreen || focusedScreen
   var effects = []
   var changed = false
   var key
@@ -595,10 +697,17 @@ function reduce(previousState, rawCommand, context) {
     if (command.type === "update" && !old) return finish(previousState, [], false, "cannot update an unknown activity", false)
     if (old && activity.revision <= old.revision) return finish(previousState, [], false, "activity revision is stale", false)
     if (old && activity.updatedAt < old.updatedAt) return finish(previousState, [], false, "activity update time is stale", false)
-    var priorSelection = selection(state.activitiesByKey, focusedScreen, nowMs)
+    var interruptingPulse = activity.transientMs > 0 && eligible(activity, focusedScreen)
+    var priorPulseKey = state.presentation.phase === "alerting" ? state.presentation.selectedKey : null
+    var priorPulse = priorPulseKey ? state.activitiesByKey[priorPulseKey] : null
+    var preservePulse = priorPulse && priorPulseKey !== key && priorPulse.transientMs > 0 && eligible(priorPulse, focusedScreen) && !activityExpired(priorPulse, nowMs)
+    if (priorPulse && priorPulse.transientMs > 0 && (interruptingPulse || priorPulseKey === key)) {
+      delete state.activitiesByKey[priorPulseKey]
+    }
+    var priorSelection = interruptingPulse ? selection(state.activitiesByKey, focusedScreen, nowMs) : null
     state.activitiesByKey[key] = clone(activity)
     changed = true
-    if (activity.transientMs > 0) {
+    if (interruptingPulse) {
       var token = state.presentation.leaseToken + 1
       var underlyingKey = priorSelection.primaryKey === key ? priorSelection.secondaryKey : priorSelection.primaryKey
       state.presentation = {
@@ -611,6 +720,10 @@ function reduce(previousState, rawCommand, context) {
         reason: "pulse",
         leaseToken: token
       }
+    } else if (preservePulse) {
+      state.presentation = alertingPresentationFor(state.activitiesByKey, state.presentation, priorPulseKey, focusedScreen, nowMs)
+    } else if (state.presentation.phase === "expanded" && state.presentation.selectedKey && state.activitiesByKey[state.presentation.selectedKey] && eligible(state.activitiesByKey[state.presentation.selectedKey], expansionScreen) && !activityExpired(state.activitiesByKey[state.presentation.selectedKey], nowMs)) {
+      state.presentation = expandedPresentationFor(state.activitiesByKey, state.presentation, focusedScreen, nowMs)
     } else {
       state.presentation = presentationFor(state.activitiesByKey, state.presentation, focusedScreen, nowMs, "publish")
     }
@@ -624,7 +737,14 @@ function reduce(previousState, rawCommand, context) {
     if (!old) return finish(previousState, [], true, "", false)
     if (command.revision !== undefined && command.revision < old.revision) return finish(previousState, [], false, "activity revision is stale", false)
     delete state.activitiesByKey[key]
-    state.presentation = presentationFor(state.activitiesByKey, state.presentation, focusedScreen, nowMs, state.presentation.selectedKey === key ? "selected-ended" : "ended")
+    var remainingSelected = state.activitiesByKey[state.presentation.selectedKey]
+    if (remainingSelected && eligible(remainingSelected, expansionScreen) && !activityExpired(remainingSelected, nowMs) && state.presentation.phase === "expanded") {
+      state.presentation = expandedPresentationFor(state.activitiesByKey, state.presentation, focusedScreen, nowMs)
+    } else if (remainingSelected && eligible(remainingSelected, focusedScreen) && !activityExpired(remainingSelected, nowMs) && state.presentation.phase === "alerting") {
+      state.presentation = alertingPresentationFor(state.activitiesByKey, state.presentation, state.presentation.selectedKey, focusedScreen, nowMs)
+    } else {
+      state.presentation = presentationFor(state.activitiesByKey, state.presentation, focusedScreen, nowMs, state.presentation.selectedKey === key ? "selected-ended" : "ended")
+    }
     changed = true
     state.revision += 1
     return finish(state, effects, true, "", changed)
@@ -632,17 +752,34 @@ function reduce(previousState, rawCommand, context) {
 
   if (command.type === "tick") {
     if (command.leaseToken !== undefined && command.leaseToken !== state.presentation.leaseToken) return finish(previousState, [], true, "", false)
-    pruneExpired(state, nowMs)
+    changed = pruneExpired(state, nowMs)
+    var expandedActivity = state.presentation.phase === "expanded" && state.presentation.selectedKey ? state.activitiesByKey[state.presentation.selectedKey] : null
+    var expandedAvailable = expandedActivity && eligible(expandedActivity, expansionScreen) && !activityExpired(expandedActivity, nowMs)
     if (context && (context.anchorAvailable === false || context.anchorLost === true) && state.presentation.phase === "expanded") {
       state.presentation = presentationFor(state.activitiesByKey, state.presentation, focusedScreen, nowMs, "anchor-lost")
       changed = true
+    } else if (state.presentation.phase === "expanded" && !expandedAvailable) {
+      state.presentation = presentationFor(state.activitiesByKey, state.presentation, focusedScreen, nowMs, "expanded-unavailable")
+      changed = true
     } else if (state.presentation.phase === "alerting" && state.presentation.selectedKey) {
       var pulse = state.activitiesByKey[state.presentation.selectedKey]
-      if (!pulse || pulse.transientMs === 0 || nowMs >= pulse.updatedAt + pulse.transientMs) {
+      if (!pulse || !eligible(pulse, focusedScreen) || activityExpired(pulse, nowMs)) {
         if (pulse && pulse.transientMs > 0) {
           delete state.activitiesByKey[state.presentation.selectedKey]
         }
         state.presentation = presentationFor(state.activitiesByKey, state.presentation, focusedScreen, nowMs, "pulse-restored")
+        changed = true
+      } else {
+        var alertNext = alertingPresentationFor(state.activitiesByKey, state.presentation, state.presentation.selectedKey, focusedScreen, nowMs)
+        if (JSON.stringify(alertNext) !== JSON.stringify(state.presentation)) {
+          state.presentation = alertNext
+          changed = true
+        }
+      }
+    } else if (state.presentation.phase === "expanded") {
+      var expandedNext = expandedPresentationFor(state.activitiesByKey, state.presentation, focusedScreen, nowMs)
+      if (JSON.stringify(expandedNext) !== JSON.stringify(state.presentation)) {
+        state.presentation = expandedNext
         changed = true
       }
     } else {
@@ -659,7 +796,7 @@ function reduce(previousState, rawCommand, context) {
   if (command.type === "expand") {
     key = targetKey(command, state.presentation)
     activity = key ? state.activitiesByKey[key] : null
-    if (!activity || !eligible(activity, focusedScreen) || (activity.expiresAt !== 0 && activity.expiresAt <= nowMs)) return finish(previousState, [], false, "cannot expand an unavailable activity", false)
+    if (!activity || !eligible(activity, focusedScreen) || activityExpired(activity, nowMs)) return finish(previousState, [], false, "cannot expand an unavailable activity", false)
     var currentSelection = selection(state.activitiesByKey, focusedScreen, nowMs)
     state.presentation = {
       phase: "expanded",
@@ -688,7 +825,7 @@ function reduce(previousState, rawCommand, context) {
 
   key = targetKey(command, state.presentation)
   activity = key ? state.activitiesByKey[key] : null
-  if (!activity) return finish(previousState, [], false, "cannot invoke an unavailable activity", false)
+  if (!activity || activityExpired(activity, nowMs)) return finish(previousState, [], false, "cannot invoke an unavailable activity", false)
   var action = null
   for (var actionIndex = 0; actionIndex < activity.actions.length; actionIndex++) {
     if (activity.actions[actionIndex].id === command.actionId) {
@@ -707,7 +844,10 @@ if (typeof module !== "undefined") {
     initialState: initialState,
     identityKey: identityKey,
     validateActivity: validateActivity,
+    validateMedia: validateMedia,
     validateCommand: validateCommand,
+    eligible: eligible,
+    selection: selection,
     nextWakeAt: nextWakeAt,
     reduce: reduce
   }
