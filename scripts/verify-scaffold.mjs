@@ -6,6 +6,7 @@ import { spawnSync } from "node:child_process"
 
 const root = path.resolve(path.dirname(fileURLToPath(import.meta.url)), "..")
 const requiredFiles = [
+  "LICENSE",
   "README.md",
   "manifest.json",
   "shell/plugins/island/ActivityModel.js",
@@ -82,12 +83,7 @@ const requiredFiles = [
   "test/island/run-activity-model.js",
   "test/island/manifest-contract.js",
   "test/island/plugin-contract.js",
-  "test/island/fixture-contract.js",
-  ".codex/skills/verify-omarchy-island/SKILL.md",
-  ".codex/skills/verify-omarchy-island/features/README.md",
-  ".codex/skills/verify-omarchy-island/features/activity-contract.md",
-  ".codex/skills/verify-omarchy-island/features/quickbar-anchor.md",
-  ".codex/skills/verify-omarchy-island/features/live-activity-publishers.md"
+  "test/island/fixture-contract.js"
 ]
 
 function fail(message) {

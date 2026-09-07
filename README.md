@@ -23,27 +23,22 @@ Important changes use a short live peek without opening the full detail view. If
 
 Peek width follows the longer text line plus its icon and padding, capped to the screen. Closing surfaces narrow into a rounded tip at the bar. Text and hit targets disappear before that narrowing can clip them.
 
-## Install the development branch
+## Install
 
 Requires Omarchy with the Quattro user-plugin API. Git and Node.js are needed for the checkout and verification commands below. Weather uses `curl`; the notification-history and system helpers use Node.js.
 
-Plugins run inside your shell process. Review code before enabling it. These commands create a new installation and will not overwrite an existing directory.
+Plugins run inside your shell process. Review code before enabling it. Install from the default `main` branch with Omarchy's plugin manager:
 
 ```bash
-git clone --branch feature/quattro-integration --single-branch \
-  https://github.com/luinbytes/omarchy-dynamic-island.git \
-  "$HOME/.config/omarchy/plugins/luinbytes.island"
-
-cd "$HOME/.config/omarchy/plugins/luinbytes.island"
-node scripts/verify-scaffold.mjs
-omarchy plugin validate .
-omarchy-shell shell rescanPlugins
+omarchy plugin add https://github.com/luinbytes/omarchy-dynamic-island.git
 omarchy plugin enable luinbytes.island --section center
 ```
 
 The plugin ID is `luinbytes.island`. Its manifest lives at the repository root. Nothing belongs in `/usr/share/omarchy`.
 
-The standard `omarchy plugin add` command installs the repository's default branch. Use the explicit branch checkout above while this implementation remains on `feature/quattro-integration`.
+An existing installation with this ID must be updated rather than installed again. Optional providers are not installed or patched by Island.
+
+### Disable or remove
 
 To disable Island:
 
@@ -54,19 +49,33 @@ omarchy plugin disable luinbytes.island
 If you installed Codex hooks, remove them before moving or deleting the plugin directory:
 
 ```bash
-node scripts/codex-island-hook.cjs --remove
+node "$HOME/.config/omarchy/plugins/luinbytes.island/scripts/codex-island-hook.cjs" --remove
 ```
+
+After removing any installed hooks, remove the plugin through Omarchy:
+
+```bash
+omarchy plugin remove luinbytes.island
+```
+
+Back up local plugin edits before removal. Island does not uninstall your notification, media, or agent providers.
 
 ### Update an existing checkout
 
 Check for local changes first, especially if an agent installed a custom QA build. Do not overwrite those builds with the commands below.
 
-For a clean Git checkout on this branch:
+For a clean Git checkout already on `main`:
 
 ```bash
 cd "$HOME/.config/omarchy/plugins/luinbytes.island"
 git status --short
-git pull --ff-only origin feature/quattro-integration
+git branch --show-current
+```
+
+Stop if the checkout is dirty or on another branch. Preserve custom builds and migrate them separately rather than switching branches over local edits. Otherwise:
+
+```bash
+git pull --ff-only origin main
 node scripts/verify-scaffold.mjs
 omarchy plugin validate .
 omarchy-shell shell rescanPlugins
@@ -78,15 +87,13 @@ omarchy-shell shell rescanPlugins
 
 Island consumes Quattro's active MPRIS player. It does not run a second player-discovery service. Browsers must expose desktop media sessions; mpv needs an MPRIS bridge such as `mpv-mpris`. Unsupported seek or transport actions stay disabled.
 
-See [media and theme integration](docs/media-integration.md) for capabilities and artwork limits.
-
 ### Agents
 
 An existing Herdr widget can supply status. You can also install status-only Codex hooks from the Agents setup view, or inspect and install them with:
 
 ```bash
-node scripts/codex-island-hook.cjs --print-config
-node scripts/codex-island-hook.cjs --install
+node "$HOME/.config/omarchy/plugins/luinbytes.island/scripts/codex-island-hook.cjs" --print-config
+node "$HOME/.config/omarchy/plugins/luinbytes.island/scripts/codex-island-hook.cjs" --install
 ```
 
 Installation preserves other hook handlers and backs up the existing configuration. Review and enable the hooks in Codex. Island reports observed activity, not proof that an agent's work succeeded. It does not read prompts or transcripts for this integration.
@@ -97,7 +104,7 @@ Add the existing `lu.codex-usage` plugin to your bar. Island reads its public us
 
 Each available window can produce a five-second peek after a cumulative ten-percentage-point drop, below 25%, 10%, or 5% remaining, or when its numeric reset timestamp advances. Startup and data recovery establish a silent baseline. Repeated samples do not repeat warnings.
 
-Reset peeks require the provider's optional `weekly_reset_at` and `session_reset_at` fields. Providers without those fields still support usage-drop alerts. The local provider extension is separate from this repository. See [Codex usage peeks](docs/codex-usage-peeks.md).
+Reset peeks require the provider's optional `weekly_reset_at` and `session_reset_at` fields. Providers without those fields still support usage-drop alerts. The local provider extension is separate from this repository.
 
 ### Notifications and Omapager
 
@@ -106,6 +113,8 @@ Island uses the installed notification backend. With Omapager, it reads admitted
 Omapager's optional `automaticDisplayClaims` hook lets Island replace automatic popups on eligible monitors. Omapager still owns delivery, expiry, history, and actions. Explicit Omapager history and reply views remain accessible. Disabling Island restores Omapager's presentation.
 
 That hook is a separate Omapager-side integration, not a Quattro patch. An Omapager version without it retains its own banners. Island respects DND and global snooze; Omapager retains its critical-notification and verification-code exceptions.
+
+The tested popup handoff and fullscreen-hover fix currently depend on a local Omapager extension that is not distributed here. On stock Omapager, expect its banners alongside Island peeks. Do not disable your notification backend to suppress duplicates; it owns notification delivery. Public release of the extension is tracked as an outstanding integration gate.
 
 ### Weather and system activity
 
@@ -116,6 +125,7 @@ System observations are read-only. High utilization is not a crash, a sleeping p
 ## Verify and troubleshoot
 
 ```bash
+cd "$HOME/.config/omarchy/plugins/luinbytes.island"
 node scripts/verify-scaffold.mjs
 omarchy plugin validate .
 omarchy-shell shell ping
@@ -126,18 +136,14 @@ The status output can contain activity metadata. Redact it before sharing public
 
 Portable tests check models and package contracts. They do not prove QML startup, rendered motion, input behavior, or visual parity. Native QA must inspect the running shell. Some dynamic QML types produce static lint warnings, and startup visibility warnings remain under investigation.
 
-Use the [verification guide](.codex/skills/verify-omarchy-island/SKILL.md) for native checks and opt-in fixtures. Fixtures are for disposable sessions, not your normal desktop.
+Fixtures are for disposable sessions, not your normal desktop. Native checks must cover notification arrival and expiry, playback changes, opening and closing details, multiple monitors, and fullscreen transitions.
 
 ## Development
 
 `Service.qml` owns the plugin's activity state. Pure JavaScript models handle selection and presentation. QML components draw and interact with those models. External integrations stay behind their provider boundaries.
 
-- [Architecture](docs/scaffold-architecture.md)
-- [Automatic activity selection](docs/live-activity-lifecycle.md)
-- [Renderer design](docs/renderer-architecture.md)
-- [Motion references](docs/motion-reference.md)
-- [Peek sizing and closing geometry](docs/peek-geometry.md)
-- [Codex usage events](docs/codex-usage-peeks.md)
-- [Delivery plan](docs/omarchy-island-delivery-plan.md)
+## License and release status
 
-Older research and QA documents describe earlier revisions. They are implementation history, not a promise that every proposed feature is complete.
+Original plugin code is available under the [MIT license](LICENSE). Apple names identify design inspiration, not affiliation or endorsement. Runtime media artwork belongs to its respective owners and is not bundled with this plugin.
+
+Stock-session installation and removal QA, public preview imagery, and publication of the optional provider extensions remain outstanding. A passing CI run is not native UI acceptance.

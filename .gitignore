@@ -1,3 +1,5 @@
 /.audit/
+/.codex/
+/AGENTS.md
 __pycache__/
 *.pyc
