@@ -6,6 +6,18 @@ Inspired by Apple's Dynamic Island, built as an independent Quattro user plugin.
 
 **Development preview.** The renderer and live publishers remain unfinished. This branch is usable for testing, not a claim of complete Apple visual or motion parity.
 
+## Screenshots
+
+Native captures from Omarchy with sample notification text and the installed system theme.
+
+**Notification peek**
+
+![A small Omarchy Island notification peek connected to the quickbar, showing Ready](assets/screenshots/notification-peek.png)
+
+**Notification details with a separate live peek**
+
+![Expanded notification details showing Your files are ready, with a separate notification peek below](assets/screenshots/notification-detail.png)
+
 ## What it does
 
 | Activity | What you get |
@@ -146,4 +158,4 @@ Fixtures are for disposable sessions, not your normal desktop. Native checks mus
 
 Original plugin code is available under the [MIT license](LICENSE). Apple names identify design inspiration, not affiliation or endorsement. Runtime media artwork belongs to its respective owners and is not bundled with this plugin.
 
-Stock-session installation and removal QA, public preview imagery, and publication of the optional provider extensions remain outstanding. A passing CI run is not native UI acceptance.
+Stock-session installation and removal QA and publication of the optional provider extensions remain outstanding. A passing CI run is not native UI acceptance.
