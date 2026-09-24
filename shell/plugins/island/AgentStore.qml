@@ -25,7 +25,7 @@ Item {
   readonly property bool herdrOnline: enabled && !!herdrState && herdrState.online === true
   readonly property bool hookSubscribed: enabled && observing
   readonly property var hookSnapshot: AgentModel.snapshot(records, nowMs, enabled && observing)
-  readonly property string sourceLabel: hookSubscribed ? "Codex hooks" : herdrOnline ? "Herdr · reported status" : "No live agent source"
+  readonly property string sourceLabel: hookSubscribed ? "Agent hooks" : herdrOnline ? "Herdr · reported status" : "No live agent source"
   readonly property var snapshot: {
     var source = hookSubscribed ? hookSnapshot : AgentModel.snapshot(herdrRecords, nowMs, herdrOnline, 10000)
     return Object.assign({}, source, { ready: hookSubscribed ? true : herdrEnumerationReady })

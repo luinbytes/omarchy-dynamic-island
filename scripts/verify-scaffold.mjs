@@ -44,6 +44,7 @@ const requiredFiles = [
   "scripts/island-notification-history.cjs",
   "scripts/island-system-sample.cjs",
   "scripts/codex-island-hook.cjs",
+  "scripts/omp-island.ts",
   "shell/plugins/island/Service.qml",
   "shell/plugins/island/BarWidget.qml",
   "shell/plugins/island/IslandSurface.qml",
@@ -70,6 +71,7 @@ const requiredFiles = [
   "test/island/media-content.js",
   "test/island/shared-title.js",
   "test/island/codex-model.js",
+  "test/island/omp-hook.js",
   "test/island/codex-peek.js",
   "test/island/activity-icon.js",
   "test/island/hover-suppression.js",
@@ -149,6 +151,7 @@ if (run(process.execPath, ["test/island/presentation-paint.js"])) console.log("o
 if (run(process.execPath, ["test/island/chooser-input.js"])) console.log("ok - chooser navigation during motion")
 if (run(process.execPath, ["test/island/live-selection.js"])) console.log("ok - automatic activity lifecycle")
 if (run(process.execPath, ["test/island/agent-sources.js"])) console.log("ok - live agent sources")
+if (run(process.execPath, ["test/island/omp-hook.js"])) console.log("ok - OMP agent lifecycle")
 if (run(process.execPath, ["test/island/notification-model.js"])) console.log("ok - native notification boundary")
 if (run(process.execPath, ["test/island/system-model.js"])) console.log("ok - sustained resource observations")
 if (run(process.execPath, ["test/island/hook-install.js"])) console.log("ok - isolated hook installer round-trip")

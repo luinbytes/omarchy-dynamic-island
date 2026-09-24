@@ -271,15 +271,15 @@ Item {
           fontSize: 9
           focusable: true
           Accessible.role: Accessible.Button
-          Accessible.name: root.store.observing ? "Stop observing Codex hooks" : "Observe Codex hooks"
+          Accessible.name: root.store.observing ? "Stop observing agent hooks" : "Observe agent hooks"
           Accessible.focusable: true
           Accessible.onPressAction: root.store.setObserving(!root.store.observing)
           onClicked: root.store.setObserving(!root.store.observing)
         }
 
         Ui.Button {
-          text: "Install"
-          tooltipText: "Add Island status hooks while preserving existing hooks"
+          text: "Install Codex"
+          tooltipText: "Add Codex status hooks while preserving existing hooks"
           foreground: Color.bar.text
           fontSize: 9
           enabled: !root.store.configuring
@@ -292,7 +292,7 @@ Item {
         }
 
         Ui.Button {
-          text: "Remove"
+          text: "Remove Codex"
           foreground: Color.bar.text
           fontSize: 9
           enabled: !root.store.configuring
