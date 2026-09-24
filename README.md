@@ -64,6 +64,12 @@ If you installed Codex hooks, remove them before moving or deleting the plugin d
 node "$HOME/.config/omarchy/plugins/luinbytes.island/scripts/codex-island-hook.cjs" --remove
 ```
 
+If you installed the optional OMP extension, remove only its dedicated copy before removing Island:
+
+```bash
+rm "$HOME/.omp/agent/extensions/omp-island.ts"
+```
+
 After removing any installed hooks, remove the plugin through Omarchy:
 
 ```bash
@@ -109,6 +115,17 @@ node "$HOME/.config/omarchy/plugins/luinbytes.island/scripts/codex-island-hook.c
 ```
 
 Installation preserves other hook handlers and backs up the existing configuration. Review and enable the hooks in Codex. Island reports observed activity, not proof that an agent's work succeeded. It does not read prompts or transcripts for this integration.
+
+### OMP agent status
+
+OMP loads extensions from `~/.omp/agent/extensions`. Review `scripts/omp-island.ts` and, if no file with this name already exists there, opt in by copying it:
+
+```bash
+mkdir -p "$HOME/.omp/agent/extensions"
+cp "$HOME/.config/omarchy/plugins/luinbytes.island/scripts/omp-island.ts" "$HOME/.omp/agent/extensions/omp-island.ts"
+```
+
+Start a new OMP session, then choose **Observe hooks** in Island's Agents setup. OMP sessions appear as `OMP hooks`; Codex's Install/Remove controls affect Codex only. The extension sends session identifiers and lifecycle status to the local Island shell command. It does not send prompts, transcripts, tool arguments, or tool output. `ask` waits are shown as blocked; tool approvals are shown as approval requested. OMP started inside another agent's shell and headless sessions are excluded. This extension is separate from Herdr's managed OMP integration: do not edit or replace Herdr's file. To stop sending OMP events, remove only `~/.omp/agent/extensions/omp-island.ts` and restart OMP. If you no longer use any hooks, turn off **Observe hooks** too.
 
 ### Codex usage
 

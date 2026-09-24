@@ -1,5 +1,5 @@
 var STATES = ["working", "approval-requested", "blocked", "idle", "turn-ended", "interrupted", "disconnected", "unknown"]
-var EVENTS = { SessionStart: "idle", UserPromptSubmit: "working", PreToolUse: "working", PostToolUse: "working", PermissionRequest: "approval-requested", Stop: "turn-ended", Interrupt: "interrupted", SessionEnd: "disconnected", SubagentStart: "working", SubagentStop: "turn-ended" }
+var EVENTS = { SessionStart: "idle", UserPromptSubmit: "working", PreToolUse: "working", PostToolUse: "working", PermissionRequest: "approval-requested", Blocked: "blocked", Stop: "turn-ended", Interrupt: "interrupted", SessionEnd: "disconnected", SubagentStart: "working", SubagentStop: "turn-ended" }
 
 function identifier(value) {
   return typeof value === "string" && /^[A-Za-z0-9_.:/-]{1,160}$/.test(value)
@@ -29,7 +29,7 @@ function ingest(previous, raw, now) {
   var changedAt = old && old.state === nextState && old.approvalNoted === approvalNoted
     ? old.changedAt || old.observedAt : raw.observedAt
   var session = { sessionId: raw.sessionId, parentId: raw.parentId, state: nextState, observedAt: raw.observedAt,
-    changedAt: changedAt, event: raw.event, approvalNoted: approvalNoted, source: "Codex hooks" }
+    changedAt: changedAt, event: raw.event, approvalNoted: approvalNoted, source: raw.sessionId.indexOf("omp:") === 0 ? "OMP hooks" : "Codex hooks" }
   if (index >= 0) sessions[index] = session
   else sessions.push(session)
   sessions.sort(function(a, b) { return b.observedAt - a.observedAt })
