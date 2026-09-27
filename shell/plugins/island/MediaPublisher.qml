@@ -1,4 +1,5 @@
 import QtQuick
+import Quickshell.Services.Mpris
 import "MediaProjection.js" as MediaProjection
 
 Item {
@@ -9,11 +10,9 @@ Item {
   property var state: MediaProjection.initialState()
   property bool peekSnapshotReady: false
   property var peekSnapshot: ({ kind: "absent" })
-  readonly property var media: shell && typeof shell.firstPartyServiceFor === "function"
-    ? shell.firstPartyServiceFor("omarchy.media") : null
+  readonly property var sourcePlayers: Mpris.players ? Mpris.players.values : []
   property string selectedPlayerKey: ""
-  readonly property var activePlayer: media && selectedPlayerKey && typeof media.playerForKey === "function" && media.players
-    ? media.playerForKey(selectedPlayerKey) || media.activePlayer : media && media.activePlayer ? media.activePlayer : null
+  readonly property var activePlayer: selectActivePlayer()
   readonly property string publishedKey: state && state.playerKey ? state.playerKey : ""
   readonly property int publishedInstanceEpoch: state && typeof state.instanceEpoch === "number" ? state.instanceEpoch : 0
   readonly property string publishedTrackToken: state && state.trackToken ? state.trackToken : ""
@@ -36,18 +35,46 @@ Item {
   property var publishedPlayer: null
   property int playerInstanceEpoch: 0
   readonly property var players: {
-    var list = media && media.sourcePlayers ? media.sourcePlayers : []
-    return list.map(function(player) {
-      return { key: String(media.playerKey(player)), label: String(player.identity || player.desktopEntry || "Media player"), playing: player.isPlaying === true }
+    var list = sourcePlayers || []
+    return list.filter(function(player) { return player && (player.trackTitle || player.trackArtist) }).map(function(player) {
+      return { key: playerKey(player), label: String(player.identity || player.desktopEntry || "Media player"), playing: player.isPlaying === true }
     })
   }
 
+  function playerKey(player) {
+    return player ? String(player.dbusName || player.desktopEntry || player.identity || "") : ""
+  }
+
+  function selectActivePlayer() {
+    var list = sourcePlayers || []
+    var firstWithTrack = null
+    var firstPlaying = null
+    for (var index = 0; index < list.length; index++) {
+      var player = list[index]
+      if (!player || !(player.trackTitle || player.trackArtist)) continue
+      if (selectedPlayerKey && playerKey(player) === selectedPlayerKey) return player
+      if (player.isPlaying === true && !firstPlaying) firstPlaying = player
+      if (!firstWithTrack) firstWithTrack = player
+    }
+    return firstPlaying || firstWithTrack
+  }
+
   function selectPlayer(key) {
-    if (!enabled || !media || typeof key !== "string" || key.length > 255 || typeof media.selectPlayer !== "function") return false
-    if (media.selectPlayer(key) !== true) return false
+    if (!enabled || typeof key !== "string" || key.length > 255) return false
+    var player = playerForKey(key)
+    if (!player || !(player.trackTitle || player.trackArtist)) return false
     selectedPlayerKey = key
     schedule()
     return true
+  }
+
+  function playerForKey(key) {
+    if (!key) return null
+    var list = sourcePlayers || []
+    for (var index = 0; index < list.length; index++) {
+      if (list[index] && playerKey(list[index]) === key) return list[index]
+    }
+    return null
   }
 
   function control(trackToken, actionId) {
@@ -59,11 +86,16 @@ Item {
   signal commandRequested(var command)
 
   function canHandle(player, action) {
-    return !!media && !!player && typeof media.canHandleAction === "function" && media.canHandleAction(player, action) === true
+    if (!player) return false
+    if (action === "previous") return player.canGoPrevious === true
+    if (action === "next") return player.canGoNext === true
+    if (action === "playPause") return player.canTogglePlaying === true
+      || (player.isPlaying === true ? player.canPause === true : player.canPlay === true)
+    return false
   }
 
   function canPollProgress(player) {
-    return enabled && state.active === true && !!media && media.hasMedia === true && !!player
+    return enabled && state.active === true && !!player
       && player.isPlaying === true && player.positionSupported === true && player.lengthSupported === true
       && typeof player.length === "number" && isFinite(player.length) && player.length > 0
   }
@@ -75,8 +107,8 @@ Item {
   }
 
   function snapshotFor(player) {
-    if (!enabled || !media || !player || player !== observedPlayer || media.hasMedia !== true || typeof media.playerKey !== "function") return { kind: "absent" }
-    var key = media.playerKey(player)
+    if (!enabled || !player || player !== observedPlayer) return { kind: "absent" }
+    var key = playerKey(player)
     if (!key) return { kind: "absent" }
     return {
       playerKey: String(key),
@@ -114,16 +146,21 @@ Item {
   }
 
   function runPublishedAction(actionId) {
-    if (!enabled || !media || !publishedKey || typeof media.playerForKey !== "function" || typeof media.runAction !== "function") return false
-    var player = media.playerForKey(publishedKey)
+    if (!enabled || !publishedKey) return false
+    var player = playerForKey(publishedKey)
     if (!player || player !== publishedPlayer || player !== observedPlayer || !canHandle(player, actionId)) return false
-    return media.runAction(actionId, false, publishedKey) === true
+    if (actionId === "previous") player.previous()
+    else if (actionId === "next") player.next()
+    else if (player.isPlaying && player.canPause) player.pause()
+    else if (!player.isPlaying && player.canPlay) player.play()
+    else player.togglePlaying()
+    return true
   }
 
   function seekPublished(trackToken, positionSeconds) {
-    if (!enabled || !media || !publishedKey || !publishedTrackToken || trackToken !== publishedTrackToken
-      || typeof media.playerForKey !== "function" || typeof positionSeconds !== "number" || !isFinite(positionSeconds)) return false
-    var player = media.playerForKey(publishedKey)
+    if (!enabled || !publishedKey || !publishedTrackToken || trackToken !== publishedTrackToken
+      || typeof positionSeconds !== "number" || !isFinite(positionSeconds)) return false
+    var player = playerForKey(publishedKey)
     if (!player || player !== observedPlayer || player !== publishedPlayer
       || MediaProjection.trackToken(publishedKey, publishedInstanceEpoch, player.uniqueId) !== trackToken
       || player.canSeek !== true || player.positionSupported !== true || player.lengthSupported !== true) return false
@@ -140,7 +177,8 @@ Item {
       playerKey: publishedKey,
       trackToken: publishedTrackToken,
       revision: state.revision,
-      polling: progressTimer.running
+      polling: progressTimer.running,
+      sourcePlayerCount: sourcePlayers ? sourcePlayers.length : 0
     }
   }
 
@@ -157,7 +195,7 @@ Item {
     observeActivePlayer()
     schedule()
   }
-  onMediaChanged: {
+  onSourcePlayersChanged: {
     peekSnapshot = ({ kind: "absent" })
     peekSnapshotReady = false
     schedule()
@@ -185,18 +223,6 @@ Item {
     repeat: true
     running: root.progressActive
     onTriggered: root.schedule()
-  }
-
-  Connections {
-    target: root.media
-    ignoreUnknownSignals: true
-    function onActivePlayerChanged() { root.schedule() }
-    function onHasMediaChanged() { root.schedule() }
-    function onTitleChanged() { root.schedule() }
-    function onArtistChanged() { root.schedule() }
-    function onAlbumChanged() { root.schedule() }
-    function onIdentityChanged() { root.schedule() }
-    function onArtUrlChanged() { root.schedule() }
   }
 
   Connections {

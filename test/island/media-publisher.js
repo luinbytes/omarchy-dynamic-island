@@ -15,11 +15,11 @@ assert.match(source, /property bool peekSnapshotReady: false/, "publisher keeps 
 assert.match(source, /ready: root\.peekSnapshotReady === true/, "peek admission receives explicit source readiness")
 assert.match(source, /peekSnapshot = result\.snapshot\s+peekSnapshotReady = true/,
   "the reconciled media snapshot becomes ready atomically with its projection")
-assert.match(source, /onMediaChanged:[\s\S]*peekSnapshotReady = false/,
+assert.match(source, /onSourcePlayersChanged:[\s\S]*peekSnapshotReady = false/,
   "source replacement resets the media baseline before it can replay")
 assert.match(source, /entityKey: JSON\.stringify\(\[MediaProjection\.SOURCE, MediaProjection\.ID\]\)/,
   "media peeks promote through the publisher's live activity identity, not a track token")
-assert.ok(match[1].indexOf("media.playerForKey(publishedKey)") < match[1].indexOf("media.runAction(actionId, false, publishedKey)"), "exact player lookup precedes host action")
+assert.ok(match[1].indexOf("playerForKey(publishedKey)") < match[1].indexOf("player.next()"), "exact player lookup precedes native action")
 for (const signal of ["onPostTrackChanged", "onPositionChanged", "onLengthChanged"]) {
   assert.match(source, new RegExp(`function ${signal}\\(\\) \\{ root\\.schedule\\(\\) \\}`), `${signal} refreshes paused metadata and timing`)
 }
@@ -39,16 +39,13 @@ assert.equal(observed.playerInstanceEpoch, 2, "a distinct QObject receives a fre
 
 function actionHarness(options) {
   const calls = []
-  const player = options.player || { key: "mpv:1" }
+  const player = options.player || { key: "mpv:1", next() { calls.push("next") } }
   const context = {
     enabled: options.enabled !== false,
     publishedKey: options.key === undefined ? "mpv:1" : options.key,
     publishedPlayer: options.publishedPlayer || player,
     observedPlayer: options.observedPlayer || player,
-    media: {
-      playerForKey(key) { return key === options.availableKey ? player : null },
-      runAction(...args) { calls.push(args); return true }
-    },
+    playerForKey(key) { return key === options.availableKey ? player : null },
     canHandle(candidate, action) { return candidate === player && options.allowed !== false && action === "next" }
   }
   const run = vm.runInNewContext(`(function(actionId) {\n${match[1]}\n})`, context)
@@ -57,7 +54,7 @@ function actionHarness(options) {
 
 let harness = actionHarness({ availableKey: "mpv:1" })
 assert.equal(harness.run("next"), true)
-assert.deepEqual(harness.calls, [["next", false, "mpv:1"]], "host action remains targeted and silent")
+assert.deepEqual(harness.calls, ["next"], "native action remains targeted")
 
 harness = actionHarness({ availableKey: "mpv:1", publishedPlayer: { key: "mpv:1" } })
 assert.equal(harness.run("next"), false, "a replacement player cannot receive a stale rendered action")
@@ -92,7 +89,7 @@ function seekHarness(options) {
     publishedTrackToken: `mpv:1|${epoch}|1`,
     observedPlayer: options.observedPlayer || publishedPlayer,
     publishedPlayer,
-    media: { playerForKey(key) { return key === options.availableKey ? livePlayer : null } },
+    playerForKey(key) { return key === options.availableKey ? livePlayer : null },
     MediaProjection: { trackToken(key, instanceEpoch, uniqueId) { return `${key}|${instanceEpoch}|${uniqueId}` } },
     isFinite,
     Number,
@@ -127,7 +124,6 @@ function pollsProgress(options) {
   const context = {
     enabled: options.enabled !== false,
     state: { active: options.active !== false },
-    media: { hasMedia: options.hasMedia !== false },
     isFinite
   }
   const predicate = vm.runInNewContext(`(function(player) {\n${progressMatch[1]}\n})`, context)
@@ -135,7 +131,7 @@ function pollsProgress(options) {
 }
 
 const playable = { isPlaying: true, positionSupported: true, lengthSupported: true, length: 120 }
-assert.equal(pollsProgress({ hasMedia: false, player: playable }), false, "absent metadata cannot poll")
+assert.equal(pollsProgress({ player: null }), false, "absent player cannot poll")
 assert.equal(pollsProgress({ player: { ...playable, length: 0 } }), false, "zero duration cannot poll")
 assert.equal(pollsProgress({ player: { ...playable, length: Infinity } }), false, "non-finite duration cannot poll")
 assert.equal(pollsProgress({ player: playable }), true, "valid active playback polls once per second")

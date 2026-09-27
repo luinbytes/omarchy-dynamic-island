@@ -22,7 +22,7 @@ Native captures from Omarchy with sample notification text and the installed sys
 
 | Activity | What you get |
 | --- | --- |
-| Music | Artwork, playback status, transport controls, and seeking through Quattro's media service. |
+| Music | Artwork, playback status, transport controls, and seeking through Quickshell's MPRIS player model. |
 | Agents | Working and attention states from an existing Herdr widget or opt-in Codex hooks. |
 | Notifications | Short live peeks, recent history, and provider-backed actions. Optional Omapager popup handoff avoids duplicate banners. |
 | Codex usage | Available weekly and five-hour allowances, pace, resets, and low-allowance peeks from `lu.codex-usage`. |
@@ -99,11 +99,18 @@ omarchy plugin validate .
 omarchy-shell shell rescanPlugins
 ```
 
+Island keeps its service loaded across rescans. To load changed service code in the running shell, briefly disable and re-enable only Island after the rescan:
+
+```bash
+omarchy-shell shell setPluginEnabled luinbytes.island false
+omarchy-shell shell setPluginEnabled luinbytes.island true
+```
+
 ## Connect your activities
 
 ### Music
 
-Island consumes Quattro's active MPRIS player. It does not run a second player-discovery service. Browsers must expose desktop media sessions; mpv needs an MPRIS bridge such as `mpv-mpris`. Unsupported seek or transport actions stay disabled.
+Island reads Quickshell's shared MPRIS player model in the existing shell process. It selects a playing player when possible, or the first player with track metadata; you can select another player in Music. Browsers must expose desktop media sessions; mpv needs an MPRIS bridge such as `mpv-mpris`. Unsupported seek or transport actions stay disabled.
 
 ### Agents
 
