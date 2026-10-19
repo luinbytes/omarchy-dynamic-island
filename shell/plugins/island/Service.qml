@@ -19,6 +19,7 @@ Item {
     return monitor && monitor.name ? String(monitor.name) : ""
   }
   property var state: ActivityModel.initialState()
+  property var registeredWidgets: []
   property var lastOwnerAction: ({ key: "", actionId: "" })
   readonly property bool fixturesEnabled: Quickshell.env("OMARCHY_ISLAND_FIXTURES") === "1"
   readonly property var activitiesByKey: root.state.activitiesByKey
@@ -188,10 +189,23 @@ Item {
     return fallback
   }
 
+  function registerWidget(widget) {
+    if (!widget || root.registeredWidgets.indexOf(widget) >= 0) return
+    root.registeredWidgets = root.registeredWidgets.concat([widget])
+    root.schedulePresentationReconcile()
+  }
+
+  function unregisterWidget(widget) {
+    var index = root.registeredWidgets.indexOf(widget)
+    if (index < 0) return
+    var remaining = root.registeredWidgets.slice()
+    remaining.splice(index, 1)
+    root.registeredWidgets = remaining
+    root.schedulePresentationReconcile()
+  }
+
   function islandWidgets() {
-    var hostBar = shell && shell.bar ? shell.bar : null
-    return hostBar && typeof hostBar.moduleWidgets === "function"
-      ? hostBar.moduleWidgets("luinbytes.island") : []
+    return root.registeredWidgets
   }
 
   function eligiblePeekScreens() {
@@ -426,8 +440,7 @@ Item {
 
   function renderStatus() {
     var widgets = []
-    var hostBar = shell && shell.bar ? shell.bar : null
-    var instances = hostBar && typeof hostBar.moduleWidgets === "function" ? hostBar.moduleWidgets("luinbytes.island") : []
+    var instances = root.islandWidgets()
     for (var i = 0; i < instances.length; i++) {
       if (instances[i] && typeof instances[i].diagnostic === "function") widgets.push(instances[i].diagnostic())
     }
@@ -535,7 +548,7 @@ Item {
     shell: root.shell
     service: root
     enabled: !root.fixturesEnabled
-    onCommandRequested: function(command) { root.receive(command) }
+    onCommandRequested: function(commandJson) { root.receive(JSON.parse(commandJson)) }
   }
 
   Timer {

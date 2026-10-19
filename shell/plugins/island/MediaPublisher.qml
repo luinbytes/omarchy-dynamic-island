@@ -83,7 +83,7 @@ Item {
     return runPublishedAction(actionId)
   }
 
-  signal commandRequested(var command)
+  signal commandRequested(string commandJson)
 
   function canHandle(player, action) {
     if (!player) return false
@@ -138,7 +138,7 @@ Item {
     peekSnapshot = result.snapshot
     peekSnapshotReady = true
     publishedPlayer = state.active === true ? player : null
-    if (result.command) commandRequested(result.command)
+    if (result.command) commandRequested(JSON.stringify(result.command))
   }
 
   function schedule() {

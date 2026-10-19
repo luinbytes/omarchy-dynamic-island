@@ -8,6 +8,7 @@ Ui.BarWidget {
   moduleName: "luinbytes.island"
   readonly property var service: root.bar && root.bar.shell && typeof root.bar.shell.serviceFor === "function"
     ? root.bar.shell.serviceFor("luinbytes.island") : null
+  property var registeredService: null
   readonly property real slotWidth: {
     var value = Number(root.setting("slotWidth", 250))
     return isFinite(value) ? Math.max(80, Math.min(320, value)) : 250
@@ -52,7 +53,28 @@ Ui.BarWidget {
     return surface.diagnostic()
   }
 
+  function syncServiceRegistration() {
+    var next = service && typeof service.registerWidget === "function" ? service : null
+    if (registeredService === next) return
+    if (registeredService) registeredService.unregisterWidget(root)
+    registeredService = next
+    if (registeredService) registeredService.registerWidget(root)
+  }
+
+  onServiceChanged: syncServiceRegistration()
+  onScreenNameChanged: {
+    if (registeredService) registeredService.schedulePresentationReconcile()
+  }
+  onPresenterAvailableChanged: {
+    if (registeredService) registeredService.schedulePresentationReconcile()
+  }
+  Component.onCompleted: syncServiceRegistration()
+
   Component.onDestruction: {
+    if (registeredService) {
+      registeredService.unregisterWidget(root)
+      registeredService = null
+    }
     root.islandBarPointerOver = false
     root.islandSurfacePointerOver = false
     if (surface) surface.syncCenterHoverSuppression(true)
