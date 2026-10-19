@@ -170,6 +170,8 @@ omarchy-shell luinbytes.island status
 
 The status output can contain activity metadata. Redact it before sharing publicly.
 
+For playback troubleshooting, compare `media.active` with `hub.schedule.primaryTool` and `hub.schedule.secondaryTool`. An active media publisher only confirms that MPRIS supplied a track; the hub also needs an accepted activity. `widgets` and `peekTargetScreens` show whether the bar has a live Island presenter. When using a custom build, check the manifest's `entryPoints` before updating or reloading: the running shell may not be using files from your checkout.
+
 Portable tests check models and package contracts. They do not prove QML startup, rendered motion, input behavior, or visual parity. Native QA must inspect the running shell. Some dynamic QML types produce static lint warnings, and startup visibility warnings remain under investigation.
 
 Fixtures are for disposable sessions, not your normal desktop. Native checks must cover notification arrival and expiry, playback changes, opening and closing details, multiple monitors, and fullscreen transitions.
