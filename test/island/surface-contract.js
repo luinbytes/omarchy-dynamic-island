@@ -125,7 +125,7 @@ const state = {
 }
 state.root = state
 const context = vm.createContext(state)
-for (const match of source.matchAll(/^  function (\w+)\(([^\n]*)\) \{\n([\s\S]*?)^  \}/gm)) {
+for (const match of (source + "\n" + inputRegion).matchAll(/^  function (\w+)\(([^\n]*)\) \{\n([\s\S]*?)^  \}/gm)) {
   state[match[1]] = vm.runInContext(`(function(${match[2]}) {\n${match[3]}\n})`, context)
 }
 // A 13.5 px shoulder ending on the host seam must stop there after snapping.
