@@ -84,6 +84,33 @@ Ui.BarWidget {
     if (surface) surface.syncCenterHoverSuppression(true)
   }
 
+  Item {
+    id: idleHandle
+    anchors.centerIn: parent
+    width: root.vertical ? root.width : 44
+    height: root.vertical ? 44 : root.height
+    visible: root.presenterAvailable && root.service && root.service.hubEntryVisible
+      && surface.frame.phase === "idle" && !surface.hasVisuals
+    Accessible.role: Accessible.Button
+    Accessible.name: "Open recent notifications"
+    Accessible.onPressAction: root.open("notifications")
+    Rectangle {
+      anchors.centerIn: parent
+      width: root.vertical ? 4 : 28
+      height: root.vertical ? 28 : 4
+      radius: 2
+      color: surface.barInk
+      opacity: idleMouse.containsMouse ? 0.85 : 0.55
+    }
+    MouseArea {
+      id: idleMouse
+      anchors.fill: parent
+      hoverEnabled: true
+      cursorShape: Qt.PointingHandCursor
+      onClicked: root.open("notifications")
+    }
+  }
+
   HoverHandler {
     enabled: root.visible && surface.frame.visible && root.width > 0 && root.height > 0
     onHoveredChanged: {

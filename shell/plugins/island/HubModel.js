@@ -551,6 +551,10 @@ function reconcile(previous, sources, options) {
   }
 
 
+  if (!candidates.length && musicCards.length) {
+    var paused = musicCards[0]
+    addCandidate(candidates, paused.card, "ambient", paused.lifecycle.changedAt, paused.lifecycle.changedAt, 0)
+  }
   for (var toolIndex = 0; toolIndex < TOOLS.length; toolIndex++) byKey["hub:" + TOOLS[toolIndex]] = byTool[TOOLS[toolIndex]]
   candidates.sort(candidateOrder)
   var primary = candidates.length ? candidates[0].content : neutralCard()

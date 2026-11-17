@@ -32,7 +32,7 @@ Native captures from Omarchy with sample notification text and the installed sys
 
 The live surface uses islandcn’s split and merge motion. A second activity pinches off into a small bubble. Clicking either activity opens its details. The bar paints the compact background itself. As the Island opens, its shoulders extend past the bar edge using the bar’s current color and opacity, including during theme changes. Glassy mode shares Omarchy’s bar blur rule.
 
-The island appears when there is an activity. Click the song, transfer or alert to expand it in place. Click the original slot or press Escape to close it. When activities finish, the bar clears. You can open a specific panel with a key binding such as `omarchy-shell luinbytes.island open weather`.
+The island appears when there is an activity. Click the song, transfer or alert to expand it in place. Click the original slot or press Escape to close it. A paused track stays available when there is room. When no activity remains, a small handle opens recent notifications. You can open a specific panel with a key binding such as `omarchy-shell luinbytes.island open weather`.
 
 Important changes use a short live peek without opening the full detail view. If details are already open, notifications and requests for attention can appear beneath them. Track changes, playback toggles and agent starts or progress update quietly on the screen where you are reading. Peeks follow each monitor's presenter availability and fullscreen policy.
 

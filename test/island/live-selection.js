@@ -49,7 +49,7 @@ assert.equal(result.nextWakeAt, 17000)
 
 result = reconcile(state, { late: mediaActivity("Renamed", false, 100, 999999999) }, 17000)
 state = result.state
-assert.notEqual(result.schedule.primary.key, "late", "paused media leaves primary at the exact deadline")
+assert.equal(result.schedule.primary.key, "late", "a paused session remains available for resume")
 assert.notEqual(result.schedule.secondary && result.schedule.secondary.key, "late", "paused media leaves both compact slots")
 assert.equal(result.nextWakeAt, null)
 assert.equal(result.schedule.byKey.late.media.title, "Renamed", "expired compact eligibility does not remove expanded controls")
@@ -165,7 +165,8 @@ pausedWeatherSources.activitiesByKey = { player: mediaActivity("New track", fals
 result = Hub.reconcile(pausedWeatherState, pausedWeatherSources, { nowMs: 11000 })
 pausedWeatherState = result.state
 result = Hub.reconcile(pausedWeatherState, pausedWeatherSources, { nowMs: 26000 })
-assert.equal(result.schedule.reason, "neutral", "paused-media expiry clears the bar when work is absent")
+assert.equal(result.schedule.primary.key, "player", "a paused track remains reachable when the bar is free")
+assert.equal(result.schedule.reason, "ambient")
 
 const oldNotification = {
   key: "[1,2]",
