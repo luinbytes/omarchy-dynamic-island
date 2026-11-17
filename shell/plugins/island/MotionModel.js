@@ -1323,7 +1323,10 @@ function reconcile(previous, intent, reducedMotion) {
     }
   }
   for (var shiftIndex = 0; shiftIndex < state.bodies.length; shiftIndex++) {
-    settleHandoffShift(state.bodies[shiftIndex], shown[shiftIndex], state.capsule, state.edge, state.bounds)
+    // The split renderer already positions the selected lobe in screen space.
+    // A second correction from the unsplit body would move its content twice.
+    if (openingSplit && state.bodies[shiftIndex].handoff === "open") state.bodies[shiftIndex].handoffFresh = false
+    else settleHandoffShift(state.bodies[shiftIndex], shown[shiftIndex], state.capsule, state.edge, state.bounds)
   }
   for (var bodyIndex = 0; bodyIndex < state.bodies.length; bodyIndex++) {
     if (!claimed[bodyIndex]) {

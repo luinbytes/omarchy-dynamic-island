@@ -4,7 +4,8 @@ const View = require("../../shell/plugins/island/ViewModel.js")
 const Motion = require("../../shell/plugins/island/MotionModel.js")
 
 const hub = Hub.initialState()
-const pair = { ...hub.schedule, secondary: hub.schedule.byTool.agents }
+const active = { ...hub.schedule, reason: "active" }
+const pair = { ...active, secondary: hub.schedule.byTool.agents }
 for (const edge of ["top", "bottom", "left", "right"]) {
   const vertical = edge === "left" || edge === "right"
   const raw = {
@@ -16,7 +17,7 @@ for (const edge of ["top", "bottom", "left", "right"]) {
     const frame = Hub.frameFor(hub, schedule, "monitor", View.screenMetrics(raw), View)
     return View.motionIntentFor(frame, raw)
   }
-  const single = intent(hub.schedule)
+  const single = intent(active)
   let state = Motion.reconcile(Motion.initialState(), single, true)
   assert.equal(Motion.renderFrame(state).split, null)
   state = Motion.reconcile(state, intent(pair), true)

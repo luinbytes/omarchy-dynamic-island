@@ -653,8 +653,12 @@ function nativeIntent(edge, primaryKey, secondaryKey, options = {}) {
   const metrics = viewModel.screenMetrics(raw)
   const phase = options.expanded ? "expanded" : "compact"
   const primary = { key: primaryKey, revision: 1 }
+  const hub = require("../../shell/plugins/island/HubModel.js")
+  const state = hub.initialState()
+  const secondary = secondaryKey ? { key: secondaryKey, revision: 1 } : null
+  const frame = hub.frameFor(state, { ...state.schedule, reason: "active", primary, secondary }, "monitor", metrics, viewModel)
   return viewModel.motionIntentFor({
-    phase, islandSkin: true, primary, selected: primary,
+    phase, splitGeometry: options.expanded ? null : frame.splitGeometry, primary, selected: primary,
     secondary: secondaryKey ? { key: secondaryKey, revision: 1 } : null,
     splitMinimal: !!secondaryKey && (edge === "left" || edge === "right"),
     geometry: viewModel.geometryFor(phase, !!secondaryKey, metrics, false)
