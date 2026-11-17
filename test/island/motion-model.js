@@ -106,7 +106,7 @@ const closingCapsule = visual.rect
 state = motion.reconcile(state, intent(body("third", { x: 250, y: 0, width: 200, height: 22, radius: 11 }, "primary", "compact", 3)), false)
 visual = motion.renderFrame(state).bodies.find(candidate => candidate.key === "third")
 assert.deepEqual(visual.rect, closingCapsule, "closing retains the sampled whole capsule")
-assert.equal(visual.outgoing, null, "closing replaces detail content without another full-height roll")
+assert.equal(visual.outgoing, null, "closing before any detail is visible leaves nothing to fade out")
 assert.equal(visual.incoming.expanded, false, "closing restores the compact semantic renderer inside the sampled capsule")
 
 const agentsCompact = { x: 835, y: 2, width: 250, height: 22, radius: 11 }
@@ -131,6 +131,86 @@ assert.deepEqual({
 assert.deepEqual(visual.regionRect, agentsCompact, "the retained compact region remains available as projection history")
 assert.ok(Math.abs(visual.incoming.offsetX) < 0.001, "a settled expanded layer starts at the capsule-local x origin")
 assert.ok(Math.abs(visual.incoming.offsetY) < 0.001, "a settled expanded layer starts at the capsule-local y origin")
+
+// Click handoff between the compact and expanded renderers, in both directions
+// and when a second click reverses the first one partway through.
+{
+  const compact = { x: 835, y: 2, width: 250, height: 22, radius: 11 }
+  const expanded = { x: 807, y: 2, width: 306, height: 228, radius: 28 }
+  const bounds = { width: 1920, height: 1080 }
+  const open = () => Object.assign(body("handoff", expanded, "expanded", "expansion"), { sourceRect: compact, sourceCapsuleRect: compact })
+  const close = () => body("handoff", compact, "primary")
+  const at = (state, rect) => ({ x: state.rect.x + rect.offsetX, y: state.rect.y + rect.offsetY })
+  const layers = frame => ({
+    compact: [frame.incoming, frame.outgoing].find(layer => layer && !layer.expanded) || null,
+    detail: [frame.incoming, frame.outgoing].find(layer => layer && layer.expanded) || null
+  })
+  const near = (left, right, label) => assert.ok(Math.abs(left - right) < 0.5, `${label}: ${left} vs ${right}`)
+  let handoff = motion.reconcile(motion.initialState(), intent(close(), null, { bounds }), true)
+  handoff = motion.reconcile(handoff, intent(open(), null, { bounds }), false)
+  handoff = tick(handoff, 2, 240)
+  assert.equal(motion.renderFrame(handoff).bodies[0].outgoing, null, "a settled opening keeps one content layer")
+
+  handoff = motion.reconcile(handoff, intent(close(), null, { bounds }), false)
+  let frame = motion.renderFrame(handoff).bodies[0]
+  assert.equal(frame.outgoing.expanded, true, "closing keeps the detail on screen as the leaving layer")
+  assert.equal(frame.outgoing.opacity, 1, "the detail does not vanish on the closing click")
+  assert.equal(frame.incoming.opacity, 0, "the compact text waits while the capsule shrinks")
+  near(frame.outgoing.offsetY, 0, "the leaving detail stays pinned to the bar edge")
+  const closing = seconds => motion.renderFrame(motion.advance(handoff, seconds)).bodies[0]
+  assert.ok(closing(0.12).outgoing.opacity < 0.7, "the detail leads the close")
+  assert.equal(closing(0.18).incoming.opacity, 0, "the compact text waits for the detail to clear")
+  for (let seconds = 0; seconds <= 0.6; seconds += 1 / 60) {
+    const sample = closing(seconds)
+    if (sample.outgoing && sample.incoming.opacity > 0.1) assert.ok(sample.outgoing.opacity < 0.1, `the two renderers never read as one layer at ${seconds}`)
+  }
+  assert.ok(closing(0.4).incoming.opacity > 0.6 && closing(0.4).incoming.scale < 1, "the compact text grows back in as the pill lands")
+  const closed = tick(handoff, 2, 240)
+  frame = motion.renderFrame(closed).bodies[0]
+  assert.equal(frame.outgoing, null, "the detail layer retires once it has faded")
+  assert.equal(frame.incoming.opacity, 1)
+  assert.equal(frame.incoming.scale, 1)
+  assert.equal(frame.settled, true, "a finished close settles the frame clock")
+  assert.equal(closed.unsettled, false)
+
+  // Second click while opening: what is on screen carries into the close.
+  let reversed = motion.reconcile(closed, intent(open(), null, { bounds }), false)
+  reversed = tick(reversed, 0.15, 18)
+  const opening = layers(motion.renderFrame(reversed).bodies[0])
+  assert.ok(opening.detail.opacity > 0.2 && opening.compact.opacity < 0.5, "sampled partway through the opening")
+  reversed = motion.reconcile(reversed, intent(close(), null, { bounds }), false)
+  let swapped = layers(motion.renderFrame(reversed).bodies[0])
+  const reversedFrame = motion.renderFrame(reversed).bodies[0]
+  near(swapped.detail.opacity, opening.detail.opacity, "detail opacity is continuous across the reversal")
+  near(swapped.compact.opacity, opening.compact.opacity, "compact opacity is continuous across the reversal")
+  near(swapped.detail.scale, opening.detail.scale, "detail scale is continuous across the reversal")
+  const before = motion.renderFrame(tick(motion.reconcile(closed, intent(open(), null, { bounds }), false), 0.15, 18)).bodies[0]
+  near(at(reversedFrame, swapped.detail).y, at(before, opening.detail).y, "detail position is continuous across the reversal")
+  near(at(reversedFrame, swapped.compact).y, at(before, opening.compact).y, "compact position is continuous across the reversal")
+  const afterReverse = layers(motion.renderFrame(motion.advance(reversed, 1 / 60)).bodies[0])
+  assert.ok(afterReverse.detail.opacity <= swapped.detail.opacity, "the detail turns back without a flash")
+
+  // Third click while closing: the detail returns from its current opacity.
+  reversed = tick(reversed, 0.1, 12)
+  const midClose = layers(motion.renderFrame(reversed).bodies[0])
+  reversed = motion.reconcile(reversed, intent(open(), null, { bounds }), false)
+  swapped = layers(motion.renderFrame(reversed).bodies[0])
+  near(swapped.detail.opacity, midClose.detail.opacity, "reopening keeps the detail opacity")
+  near(swapped.compact.opacity, midClose.compact.opacity, "reopening keeps the compact opacity")
+  reversed = tick(reversed, 2, 240)
+  frame = motion.renderFrame(reversed).bodies[0]
+  assert.equal(frame.outgoing, null)
+  assert.equal(frame.incoming.expanded, true)
+  assert.equal(frame.incoming.opacity, 1, "a reversed opening still finishes fully shown")
+  assert.ok(Math.abs(frame.incoming.offsetX) < 0.001 && Math.abs(frame.incoming.offsetY) < 0.001, "and with no residual offset")
+
+  // Reduced motion swaps in one step.
+  let reduced = motion.reconcile(reversed, intent(close(), null, { bounds }), true)
+  frame = motion.renderFrame(reduced).bodies[0]
+  assert.equal(frame.outgoing, null, "reduced motion has no leaving layer")
+  assert.equal(frame.incoming.opacity, 1)
+  assert.equal(reduced.unsettled, false)
+}
 
 function edgeMetrics(edge) {
   const width = 1920

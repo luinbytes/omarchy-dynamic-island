@@ -59,6 +59,12 @@ Item {
   readonly property bool chooserSelectionInteractive: root.chooserOwnsHeader
   readonly property bool incomingInteractive: root.controlsInteractive || root.hubNavigationInteractive
 
+  // Content scales about the edge it shares with the bar, matching the shape.
+  function layerOrigin(layer) {
+    var edge = layer && layer.origin ? layer.origin : "top"
+    return edge === "bottom" ? Item.Bottom : edge === "left" ? Item.Left : edge === "right" ? Item.Right : Item.Top
+  }
+
   function mediaSourceLabel() {
     var music = root.service && root.service.music ? root.service.music : null
     var players = music && music.players ? music.players : []
@@ -145,6 +151,8 @@ Item {
     clip: true
     visible: !!root.visual && !!root.visual.outgoing
     opacity: visible ? root.visual.outgoing.opacity : 0
+    scale: visible && root.visual.outgoing.scale !== undefined ? root.visual.outgoing.scale : 1
+    transformOrigin: root.layerOrigin(visible ? root.visual.outgoing : null)
     enabled: false
 
     IslandContent {
@@ -190,6 +198,8 @@ Item {
     clip: true
     visible: !!root.visual && !!root.visual.incoming
     opacity: visible ? root.visual.incoming.opacity : 0
+    scale: visible && root.visual.incoming.scale !== undefined ? root.visual.incoming.scale : 1
+    transformOrigin: root.layerOrigin(visible ? root.visual.incoming : null)
 
     IslandContent {
       primaryText: root.foreground

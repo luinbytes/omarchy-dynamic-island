@@ -96,14 +96,60 @@ var PROFILES = {
   content: { omega: 10, zeta: 1 }
 }
 
-// islandcn pressExpand times. On desktop a click starts the transition immediately.
-var OPEN_CONTENT = {
-  enter: { delay: 0.056, omega: 2 * Math.PI / 0.36 },
-  exit: { delay: 0.026, omega: 2 * Math.PI / 0.28 }
+// Content handoff between the compact and expanded renderers, from islandcn's
+// contentTiming. The leaving content goes first and the arriving content waits
+// for the shape to make room, so the two never read as one overlapping layer.
+// Opening uses pressExpand: on desktop a click starts the transition at once.
+// Closing keeps collapse's exit, but islandcn's 0.36 s enter waits for a shape
+// that turns through idle. This capsule heads straight for the bar and is
+// within a few pixels of compact by 0.3 s, so the compact text starts at 0.2 s
+// and lands with the pill instead of leaving it empty for a fifth of a second.
+var HANDOFF = {
+  open: {
+    enter: { delay: 0.056, response: 0.36, scale: 0.9 },
+    exit: { delay: 0.026, response: 0.28 }
+  },
+  close: {
+    enter: { delay: 0.2, response: 0.4, scale: 0.9 },
+    exit: { delay: 0.017, response: 0.22 }
+  }
 }
 
-function openContentProgress(elapsed, profile) {
-  return sampleSpring(0, 0, 1, profile.omega, 1, Math.max(0, elapsed - profile.delay)).value
+// A reversal starts from what is on screen. A layer that is already partly
+// visible keeps its opacity, scale and offset and skips the share of its delay
+// it has already shown, so a second click never makes content blink.
+function startFade(kind, spec, from, fromScale) {
+  var start = clamp(finite(from, kind === "enter" ? 0 : 1), 0, 1)
+  return {
+    kind: kind,
+    elapsed: 0,
+    from: start,
+    delay: kind === "enter" ? spec.delay * (1 - start) : spec.delay,
+    omega: 2 * Math.PI / spec.response,
+    scaleFrom: kind === "enter" && start <= 0.001 ? finite(spec.scale, 1) : finite(fromScale, 1),
+    shiftX: 0,
+    shiftY: 0
+  }
+}
+
+function fadeProgress(fade) {
+  if (!fade) return 1
+  return clamp(sampleSpring(0, 0, 1, fade.omega, 1, Math.max(0, fade.elapsed - fade.delay)).value, 0, 1)
+}
+
+function fadeOpacity(fade) {
+  if (!fade) return 1
+  var progress = fadeProgress(fade)
+  return fade.kind === "enter" ? fade.from + (1 - fade.from) * progress : fade.from * (1 - progress)
+}
+
+function fadeScale(fade) {
+  if (!fade || fade.kind !== "enter") return fade ? fade.scaleFrom : 1
+  return fade.scaleFrom + (1 - fade.scaleFrom) * fadeProgress(fade)
+}
+
+function fadeDone(fade) {
+  return !fade || fadeProgress(fade) >= 0.999
 }
 
 var PEEK_CONTENT_PROFILE = { omega: 50, zeta: 1 }
@@ -677,6 +723,8 @@ function createBody(slot) {
     contentMix: axis(1, 1, PROFILES.content),
     contentDirection: 1,
     geometryMorph: null,
+    handoff: null,
+    handoffFresh: false,
     lastCompact: null,
     sharedTitle: createSharedTitle()
   }
@@ -926,12 +974,65 @@ function samePlayerTrackReplacement(incoming, desired) {
   return previousOwner !== "" && previousOwner === mediaOwnerToken(desired.content)
 }
 
-function setContent(body, desired) {
+function renderedLayer(rendered, token) {
+  if (!rendered) return null
+  if (rendered.incoming && rendered.incoming.token === token) return rendered.incoming
+  if (rendered.outgoing && rendered.outgoing.token === token) return rendered.outgoing
+  return null
+}
+
+function endHandoff(body) {
+  body.handoff = null
+  if (body.incoming) body.incoming.fade = null
+  if (body.outgoing) body.outgoing.fade = null
+}
+
+// Swap the compact and expanded renderers of one activity. The current layer
+// becomes the leaving one and the other renderer arrives, each on its own fade.
+function beginHandoff(body, desired, token, kind, before) {
+  var timing = HANDOFF[kind]
+  var leaving = body.incoming
+  var shownLeaving = renderedLayer(before, leaving.token)
+  var shownArriving = renderedLayer(before, token)
+  leaving.fade = startFade("exit", timing.exit, shownLeaving ? shownLeaving.opacity : 1,
+    shownLeaving ? shownLeaving.scale : 1)
+  // Nothing of the leaving layer is on screen yet, so there is nothing to fade.
+  body.outgoing = leaving.fade.from > 0.001 ? leaving : null
+  body.incoming = {
+    token: token, key: desired.key, content: desired.content, expanded: kind === "open", layout: copy(desired.rect),
+    fade: startFade("enter", timing.enter, shownArriving ? shownArriving.opacity : 0,
+      shownArriving ? shownArriving.scale : 1)
+  }
+  body.handoff = kind
+  body.handoffFresh = true
+  body.contentMix = axis(1, 1, PROFILES.content)
+}
+
+// Record how far each carried layer sits from where the new handoff would put
+// it. The difference decays with that layer's own fade instead of jumping.
+function settleHandoffShift(body, shown, capsule, edge, bounds) {
+  if (!body.handoffFresh) return
+  body.handoffFresh = false
+  var fresh = renderBody(body, capsule, edge, bounds, false, 0)
+  var layers = [[body.incoming, fresh.incoming], [body.outgoing, fresh.outgoing]]
+  for (var index = 0; index < layers.length; index++) {
+    var layer = layers[index][0]
+    var drawn = layers[index][1]
+    if (!layer || !layer.fade || !drawn || !shown || !shown.rect) continue
+    var previous = renderedLayer(shown, layer.token)
+    if (!previous || previous.opacity <= 0.001) continue
+    layer.fade.shiftX = shown.rect.x + previous.offsetX - fresh.rect.x - drawn.offsetX
+    layer.fade.shiftY = shown.rect.y + previous.offsetY - fresh.rect.y - drawn.offsetY
+  }
+}
+
+function setContent(body, desired, before) {
   var token = contentToken(desired)
   if (!body.incoming) {
     body.incoming = { token: token, key: desired.key, content: desired.content, expanded: !!desired.expanded, layout: copy(desired.rect) }
     body.outgoing = null
     body.geometryMorph = null
+    body.handoff = null
     body.contentMix = axis(1, 1, PROFILES.content)
     return false
   }
@@ -942,32 +1043,35 @@ function setContent(body, desired) {
     return false
   }
   if (samePlayerTrackReplacement(body.incoming, desired)) {
-    body.incoming = { token: token, key: desired.key, content: desired.content, expanded: !!desired.expanded, layout: copy(desired.rect) }
-    body.outgoing = null
-    body.geometryMorph = null
+    // A track change in the middle of a handoff keeps the fade it is on.
+    var carriedFade = body.handoff ? body.incoming.fade : null
+    body.incoming = { token: token, key: desired.key, content: desired.content, expanded: !!desired.expanded, layout: copy(desired.rect),
+      fade: carriedFade }
+    if (body.handoff !== "close") {
+      body.outgoing = null
+      body.geometryMorph = null
+      body.handoff = null
+      if (body.incoming.fade && body.incoming.fade.kind !== "enter") body.incoming.fade = null
+    }
     body.contentMix = axis(1, 1, PROFILES.content)
     return true
   }
   if (desired.expanded && body.incoming.key === desired.key && !body.incoming.expanded) {
-    body.outgoing = body.incoming
-    body.incoming = { token: token, key: desired.key, content: desired.content, expanded: true, layout: copy(desired.rect) }
+    beginHandoff(body, desired, token, "open", before)
     body.geometryMorph = {
-      elapsed: 0,
       token: geometryMorphToken(desired),
       sourceRect: copyRect(desired.sourceRect),
       sourceCapsuleRect: copyRect(desired.sourceCapsuleRect),
       targetRect: copyRect(desired.rect)
     }
-    body.contentMix = axis(1, 1, PROFILES.content)
     return false
   }
   if (!desired.expanded && body.incoming.key === desired.key && body.incoming.expanded) {
-    body.incoming = { token: token, key: desired.key, content: desired.content, expanded: false, layout: copy(desired.rect) }
-    body.outgoing = null
+    beginHandoff(body, desired, token, "close", before)
     body.geometryMorph = null
-    body.contentMix = axis(1, 1, PROFILES.content)
-    return
+    return false
   }
+  endHandoff(body)
   if (body.outgoing && body.outgoing.token === token) {
     var previousIncoming = body.incoming
     body.incoming = body.outgoing
@@ -1099,6 +1203,9 @@ function reconcile(previous, intent, reducedMotion) {
   }
   state.edge = nextEdge
   state.bounds = nextBounds
+  var shown = state.bodies.map(function(candidate) {
+    return renderBody(candidate, state.capsule, state.edge, state.bounds, false, 0)
+  })
   state.alerting = source.alerting === true
   var closedPeek = !!source.peek && source.peek.placement === "closed"
   var sampledCapsuleRect = state.capsule && state.capsule.pose
@@ -1168,7 +1275,7 @@ function reconcile(previous, intent, reducedMotion) {
     var regionDesired = desiredBody.role === "expanded" && desiredBody.sourceRect
       ? Object.assign({}, desiredBody, { rect: desiredBody.sourceRect }) : desiredBody
     setBodyTarget(body, regionDesired, state.edge, state.bounds, selectedProfile, reducedMotion)
-    var metadataReplacement = setContent(body, desiredBody)
+    var metadataReplacement = setContent(body, desiredBody, shown[target.body])
     retargetSharedTitle(body, desiredBody, reducedMotion, metadataReplacement)
     if (reducedMotion) {
       var axes = [body.pose.cross, body.pose.near, body.pose.span, body.pose.depth, body.pose.radius, body.contentMix,
@@ -1179,7 +1286,12 @@ function reconcile(previous, intent, reducedMotion) {
       }
       body.outgoing = null
       body.geometryMorph = null
+      endHandoff(body)
+      body.handoffFresh = false
     }
+  }
+  for (var shiftIndex = 0; shiftIndex < state.bodies.length; shiftIndex++) {
+    settleHandoffShift(state.bodies[shiftIndex], shown[shiftIndex], state.capsule, state.edge, state.bounds)
   }
   for (var bodyIndex = 0; bodyIndex < state.bodies.length; bodyIndex++) {
     if (!claimed[bodyIndex]) {
@@ -1200,7 +1312,7 @@ function bodySettled(body) {
   for (var index = 0; index < axes.length; index++) {
     if (!settledAxis(axes[index])) return false
   }
-  return true
+  return fadeDone(body.incoming && body.incoming.fade) && fadeDone(body.outgoing && body.outgoing.fade)
 }
 
 function geometrySettled(body) {
@@ -1230,12 +1342,15 @@ function advance(previous, seconds) {
     body.pose.radius = advanceAxis(body.pose.radius, delta)
     body.contentMix = advanceAxis(body.contentMix, delta)
     body.sharedTitle = advanceSharedTitle(body.sharedTitle, delta)
-    if (body.geometryMorph) body.geometryMorph.elapsed += delta
+    if (body.incoming && body.incoming.fade) body.incoming.fade.elapsed += delta
+    if (body.outgoing && body.outgoing.fade) body.outgoing.fade.elapsed += delta
     if (body.geometryMorph && capsuleSettled(state.capsule)
-        && capsuleProgress(state.capsule, state.edge, state.bounds) >= 0.999) {
+        && capsuleProgress(state.capsule, state.edge, state.bounds) >= 0.999 && fadeDone(body.outgoing && body.outgoing.fade)) {
       body.outgoing = null
       body.geometryMorph = null
-    } else if (!body.geometryMorph && body.outgoing && body.contentMix.value > 0.995) body.outgoing = null
+    } else if (body.handoff === "close" && body.outgoing && fadeDone(body.outgoing.fade)) body.outgoing = null
+    else if (!body.geometryMorph && !body.handoff && body.outgoing && body.contentMix.value > 0.995) body.outgoing = null
+    if (body.handoff && !body.outgoing && body.incoming && fadeDone(body.incoming.fade)) endHandoff(body)
     if (body.role === "retiring" && body.pose.span.value < 0.02 && body.pose.depth.value < 0.02) state.bodies[index] = resetBody(body)
   }
   if (state.peek.content) {
@@ -1325,6 +1440,17 @@ function layerOffset(surfaceRect, layout) {
   }
 }
 
+// The leaving detail stays pinned to the bar side while the capsule shrinks
+// under it, so it recedes into the bar instead of sliding toward the centre.
+function nearEdgeOffset(surfaceRect, layout, edge) {
+  var width = Math.max(0, finite(layout && layout.width, 0))
+  var height = Math.max(0, finite(layout && layout.height, 0))
+  if (edge === "left") return { x: 0, y: (surfaceRect.height - height) / 2 }
+  if (edge === "right") return { x: surfaceRect.width - width, y: (surfaceRect.height - height) / 2 }
+  if (edge === "bottom") return { x: (surfaceRect.width - width) / 2, y: surfaceRect.height - height }
+  return { x: (surfaceRect.width - width) / 2, y: 0 }
+}
+
 function renderBody(body, capsule, edge, bounds, alerting, pulse) {
   if (!body.key || !body.pose) return { visible: false, slot: body.slot, opacity: 0 }
   var regionRect = rectForPose(body.pose, edge, bounds)
@@ -1358,8 +1484,20 @@ function renderBody(body, capsule, edge, bounds, alerting, pulse) {
     if (body.outgoing) outgoingOffset = { x: regionOffset.x, y: regionOffset.y }
   }
 
+  if (body.handoff === "close" && body.outgoing) outgoingOffset = nearEdgeOffset(surfaceRect, body.outgoing.layout, edge)
+  var incomingFade = body.incoming ? body.incoming.fade : null
+  var outgoingFade = body.outgoing ? body.outgoing.fade : null
+  if (incomingFade) {
+    var incomingRemaining = 1 - fadeProgress(incomingFade)
+    incomingOffset = { x: incomingOffset.x + incomingFade.shiftX * incomingRemaining, y: incomingOffset.y + incomingFade.shiftY * incomingRemaining }
+  }
+  if (outgoingFade) {
+    var outgoingRemaining = 1 - fadeProgress(outgoingFade)
+    outgoingOffset = { x: outgoingOffset.x + outgoingFade.shiftX * outgoingRemaining, y: outgoingOffset.y + outgoingFade.shiftY * outgoingRemaining }
+  }
+
   var mix = clamp(body.contentMix.value, 0, 1)
-  if (!morph && body.incoming && body.outgoing) {
+  if (!morph && !body.handoff && body.incoming && body.outgoing) {
     var rollDistance = Math.max(body.incoming.layout.height, body.outgoing.layout.height)
     incomingOffset.y += body.contentDirection * (1 - mix) * rollDistance
     outgoingOffset.y -= body.contentDirection * mix * rollDistance
@@ -1387,19 +1525,25 @@ function renderBody(body, capsule, edge, bounds, alerting, pulse) {
     rectVelocity: regionUsesCapsule ? rectVelocityForPose(capsule.pose, edge) : rectVelocityForPose(body.pose, edge),
     sharedTitle: renderSharedTitle(body.sharedTitle, body.key, contentOwnsHeader),
     incoming: body.incoming ? {
+      token: body.incoming.token,
       content: body.incoming.content,
       expanded: body.incoming.expanded,
       layout: body.incoming.layout,
-      opacity: morph ? openContentProgress(morph.elapsed, OPEN_CONTENT.enter) : 1,
+      opacity: fadeOpacity(incomingFade),
+      scale: fadeScale(incomingFade),
+      origin: edge,
       blur: 0,
       offsetX: incomingOffset.x,
       offsetY: incomingOffset.y
     } : null,
     outgoing: body.outgoing ? {
+      token: body.outgoing.token,
       content: body.outgoing.content,
       expanded: body.outgoing.expanded,
       layout: body.outgoing.layout,
-      opacity: morph ? 1 - openContentProgress(morph.elapsed, OPEN_CONTENT.exit) : 1,
+      opacity: fadeOpacity(outgoingFade),
+      scale: fadeScale(outgoingFade),
+      origin: edge,
       blur: 0,
       offsetX: outgoingOffset.x,
       offsetY: outgoingOffset.y
