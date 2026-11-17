@@ -94,7 +94,7 @@ assert.match(serviceSource, /function eligiblePeekScreens\(\)[\s\S]*result\.push
   "one event targets every unique visible non-fullscreen Island")
 assert.match(source, /screenMonitor:[\s\S]*Hyprland\.monitorFor\(screen\)[\s\S]*screenFullscreen:[\s\S]*hasFullscreen/,
   "each surface reacts directly to its monitor fullscreen workspace")
-assert.match(source, /visible:\s*!!screen[\s\S]*id:\s*capsule[\s\S]*visible:\s*root\.presenterAvailable/,
+assert.match(source, /visible:\s*!!anchorWindow && !!anchorWindow\.screen[\s\S]*id:\s*capsule[\s\S]*visible:\s*root\.presenterAvailable/,
   "the transparent layer stays mapped while hidden content disappears with the bar")
 assert.match(source, /onPresenterAvailableChanged:[\s\S]*motionCommitTimer\.stop\(\)[\s\S]*motion\.abandon\(\)[\s\S]*service\.collapse\("anchor-lost"\)/,
   "anchor loss clears pixels and releases an expanded owner without an exit animation")

@@ -334,7 +334,7 @@ PanelWindow {
   }
 
   screen: anchorWindow ? anchorWindow.screen : null
-  visible: !!screen
+  visible: !!anchorWindow && !!anchorWindow.screen
   color: "transparent"
   exclusionMode: ExclusionMode.Ignore
   anchors { top: true; bottom: true; left: true; right: true }
