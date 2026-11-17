@@ -1,15 +1,16 @@
 pragma ComponentBehavior: Bound
 
 import QtQuick
-import qs.Commons
+import qs.Commons as Commons
 import qs.Ui as Ui
 import "WeatherModel.js" as WeatherModel
 
 Item {
   id: root
+  property color foregroundColor: Commons.Color.bar.text
 
   required property var store
-  property real headerRightInset: 32
+  property real headerRightInset: 0
   property string panelMode: "summary"
   property int hourPage: 0
   property int searchPage: 0
@@ -43,7 +44,7 @@ Item {
     width: 24
     height: 24
     radius: 12
-    color: Qt.rgba(Color.bar.text.r, Color.bar.text.g, Color.bar.text.b, activeFocus ? 0.14 : 0.07)
+    color: Qt.rgba(root.foregroundColor.r, root.foregroundColor.g, root.foregroundColor.b, activeFocus ? 0.14 : 0.07)
     opacity: enabled ? 1 : 0.35
     activeFocusOnTab: enabled
     Accessible.role: Accessible.Button
@@ -57,8 +58,8 @@ Item {
       anchors.centerIn: parent
       text: glyphButton.glyph
       textFormat: Text.PlainText
-      color: Color.bar.text
-      font.family: Style.font.family
+      color: root.foregroundColor
+      font.family: Commons.Style.font.family
       font.pixelSize: 15
     }
     MouseArea {
@@ -73,9 +74,9 @@ Item {
     width: parent ? parent.width : 0
     text: "Weather data © Open-Meteo · IP location by wttr.in"
     textFormat: Text.PlainText
-    color: Color.muted
+    color: Commons.Color.muted
     opacity: 0.75
-    font.family: Style.font.family
+    font.family: Commons.Style.font.family
     font.pixelSize: 8
     elide: Text.ElideRight
   }
@@ -152,8 +153,8 @@ Item {
         text: WeatherModel.iconForCode(root.snapshot.current ? root.snapshot.current.weatherCode : -1,
           root.snapshot.current ? root.snapshot.current.isDay : true)
         textFormat: Text.PlainText
-        color: Color.accent
-        font.family: Style.font.family
+        color: Commons.Color.accent
+        font.family: Commons.Style.font.family
         font.pixelSize: 30
         horizontalAlignment: Text.AlignHCenter
       }
@@ -168,8 +169,8 @@ Item {
           width: parent.width
           text: root.snapshot.location ? root.snapshot.location.name : "Weather"
           textFormat: Text.PlainText
-          color: Color.bar.text
-          font.family: Style.font.family
+          color: root.foregroundColor
+          font.family: Commons.Style.font.family
           font.pixelSize: 13
           font.weight: Font.DemiBold
           elide: Text.ElideRight
@@ -179,8 +180,8 @@ Item {
           text: WeatherModel.conditionLabel(root.snapshot.current ? root.snapshot.current.weatherCode : -1)
             + (root.snapshot.status === "stale" ? " · Stale" : "")
           textFormat: Text.PlainText
-          color: root.snapshot.status === "stale" ? Color.accent : Color.muted
-          font.family: Style.font.family
+          color: root.snapshot.status === "stale" ? Commons.Color.accent : Commons.Color.muted
+          font.family: Commons.Style.font.family
           font.pixelSize: 10
           elide: Text.ElideRight
         }
@@ -191,7 +192,7 @@ Item {
         anchors.rightMargin: root.headerRightInset
         anchors.verticalCenter: parent.verticalCenter
         text: "Settings"
-        foreground: Color.bar.text
+        foreground: root.foregroundColor
         fontSize: 9
         focusable: true
         onClicked: root.panelMode = "settings"
@@ -206,8 +207,8 @@ Item {
         anchors.verticalCenter: parent.verticalCenter
         text: root.rounded(root.snapshot.current ? root.snapshot.current.temperature : null) + root.snapshot.temperatureUnit
         textFormat: Text.PlainText
-        color: Color.bar.text
-        font.family: Style.font.family
+        color: root.foregroundColor
+        font.family: Commons.Style.font.family
         font.pixelSize: 31
         font.weight: Font.Light
       }
@@ -217,16 +218,16 @@ Item {
         Text {
           text: "Feels " + root.rounded(root.snapshot.current ? root.snapshot.current.feelsLike : null) + root.snapshot.temperatureUnit
           textFormat: Text.PlainText
-          color: Color.muted
-          font.family: Style.font.family
+          color: Commons.Color.muted
+          font.family: Commons.Style.font.family
           font.pixelSize: 10
         }
         Text {
           text: "H " + root.rounded(root.snapshot.current ? root.snapshot.current.high : null)
             + "°  L " + root.rounded(root.snapshot.current ? root.snapshot.current.low : null) + "°"
           textFormat: Text.PlainText
-          color: Color.muted
-          font.family: Style.font.family
+          color: Commons.Color.muted
+          font.family: Commons.Style.font.family
           font.pixelSize: 10
         }
       }
@@ -239,8 +240,8 @@ Item {
           text: root.snapshot.current && root.snapshot.current.humidity !== null
             ? "Humidity " + root.rounded(root.snapshot.current.humidity) + "%" : ""
           textFormat: Text.PlainText
-          color: Color.muted
-          font.family: Style.font.family
+          color: Commons.Color.muted
+          font.family: Commons.Style.font.family
           font.pixelSize: 10
         }
         Text {
@@ -248,8 +249,8 @@ Item {
           text: root.snapshot.current && root.snapshot.current.windSpeed !== null
             ? "Wind " + root.rounded(root.snapshot.current.windSpeed) + " " + root.snapshot.windUnit : ""
           textFormat: Text.PlainText
-          color: Color.muted
-          font.family: Style.font.family
+          color: Commons.Color.muted
+          font.family: Commons.Style.font.family
           font.pixelSize: 10
         }
       }
@@ -271,7 +272,7 @@ Item {
           height: 66
           layer.enabled: true
           radius: 11
-          color: Qt.rgba(Color.bar.text.r, Color.bar.text.g, Color.bar.text.b, 0.055)
+          color: Qt.rgba(root.foregroundColor.r, root.foregroundColor.g, root.foregroundColor.b, 0.055)
           Column {
             anchors.centerIn: parent
             width: parent.width - 8
@@ -280,8 +281,8 @@ Item {
               width: parent.width
               text: root.hourLabel(hourCard.modelData.time)
               textFormat: Text.PlainText
-              color: Color.muted
-              font.family: Style.font.family
+              color: Commons.Color.muted
+              font.family: Commons.Style.font.family
               font.pixelSize: 9
               horizontalAlignment: Text.AlignHCenter
               elide: Text.ElideRight
@@ -290,8 +291,8 @@ Item {
               width: parent.width
               text: WeatherModel.iconForCode(hourCard.modelData.weatherCode, hourCard.modelData.isDay)
               textFormat: Text.PlainText
-              color: Color.bar.text
-              font.family: Style.font.family
+              color: root.foregroundColor
+              font.family: Commons.Style.font.family
               font.pixelSize: 16
               horizontalAlignment: Text.AlignHCenter
             }
@@ -300,8 +301,8 @@ Item {
               text: root.rounded(hourCard.modelData.temperature) + "°"
                 + (hourCard.modelData.precipitationProbability !== null ? " · " + hourCard.modelData.precipitationProbability + "%" : "")
               textFormat: Text.PlainText
-              color: Color.bar.text
-              font.family: Style.font.family
+              color: root.foregroundColor
+              font.family: Commons.Style.font.family
               font.pixelSize: 9
               horizontalAlignment: Text.AlignHCenter
               elide: Text.ElideRight
@@ -321,8 +322,8 @@ Item {
         anchors.verticalCenter: parent.verticalCenter
         text: (root.activeHourPage + 1) + " / " + root.hourPageCount
         textFormat: Text.PlainText
-        color: Color.muted
-        font.family: Style.font.family
+        color: Commons.Color.muted
+        font.family: Commons.Style.font.family
         font.pixelSize: 9
       }
       PageGlyph { glyph: "›"; enabled: root.activeHourPage + 1 < root.hourPageCount; onInvoked: root.hourPage = root.activeHourPage + 1 }
@@ -332,8 +333,8 @@ Item {
       width: parent.width
       text: root.snapshot.error || root.snapshot.ageLabel
       textFormat: Text.PlainText
-      color: root.snapshot.error ? Color.accent : Color.muted
-      font.family: Style.font.family
+      color: root.snapshot.error ? Commons.Color.accent : Commons.Color.muted
+      font.family: Commons.Style.font.family
       font.pixelSize: 9
       elide: Text.ElideRight
       visible: text !== ""
@@ -350,8 +351,8 @@ Item {
       width: parent.width - root.headerRightInset
       text: root.snapshot.initialized ? "Choose your weather location" : "Loading weather"
       textFormat: Text.PlainText
-      color: Color.bar.text
-      font.family: Style.font.family
+      color: root.foregroundColor
+      font.family: Commons.Style.font.family
       font.pixelSize: 15
       font.weight: Font.DemiBold
       elide: Text.ElideRight
@@ -361,15 +362,15 @@ Item {
       text: root.snapshot.error || "Search for a city, or opt in to approximate IP location."
       textFormat: Text.PlainText
       wrapMode: Text.WordWrap
-      color: root.snapshot.error ? Color.accent : Color.muted
-      font.family: Style.font.family
+      color: root.snapshot.error ? Commons.Color.accent : Commons.Color.muted
+      font.family: Commons.Style.font.family
       font.pixelSize: 10
     }
     Row {
       spacing: 8
       Ui.Button {
         text: "Choose city"
-        foreground: Color.bar.text
+        foreground: root.foregroundColor
         bordered: true
         focusable: true
         enabled: root.snapshot.initialized
@@ -377,7 +378,7 @@ Item {
       }
       Ui.Button {
         text: root.snapshot.refreshing ? "Locating…" : "Use IP location"
-        foreground: Color.bar.text
+        foreground: root.foregroundColor
         bordered: true
         focusable: true
         enabled: root.snapshot.initialized && !root.snapshot.refreshing
@@ -386,7 +387,7 @@ Item {
       Ui.Button {
         text: "Stop weather"
         visible: root.snapshot.mode !== "unset"
-        foreground: Color.bar.text
+        foreground: root.foregroundColor
         bordered: true
         focusable: true
         onClicked: root.stopWeather()
@@ -397,8 +398,8 @@ Item {
       text: "IP location is opt-in and is sent to wttr.in. Forecasts use Open-Meteo."
       textFormat: Text.PlainText
       wrapMode: Text.WordWrap
-      color: Color.muted
-      font.family: Style.font.family
+      color: Commons.Color.muted
+      font.family: Commons.Style.font.family
       font.pixelSize: 9
     }
     Attribution {}
@@ -416,7 +417,7 @@ Item {
         id: settingsBack
         anchors.left: parent.left
         text: "Back"
-        foreground: Color.bar.text
+        foreground: root.foregroundColor
         fontSize: 10
         focusable: true
         onClicked: root.panelMode = "summary"
@@ -429,8 +430,8 @@ Item {
         anchors.verticalCenter: parent.verticalCenter
         text: "Weather settings"
         textFormat: Text.PlainText
-        color: Color.bar.text
-        font.family: Style.font.family
+        color: root.foregroundColor
+        font.family: Commons.Style.font.family
         font.pixelSize: 13
         font.weight: Font.DemiBold
         elide: Text.ElideRight
@@ -445,7 +446,7 @@ Item {
           required property var modelData
           text: modelData.label
           selected: root.snapshot.unit === modelData.id
-          foreground: Color.bar.text
+          foreground: root.foregroundColor
           fontSize: 9
           focusable: true
           onClicked: root.store.setUnit(modelData.id)
@@ -454,30 +455,30 @@ Item {
     }
     Row {
       spacing: 6
-      Ui.Button { text: "Change city"; foreground: Color.bar.text; fontSize: 9; focusable: true; onClicked: root.openSearch() }
+      Ui.Button { text: "Change city"; foreground: root.foregroundColor; fontSize: 9; focusable: true; onClicked: root.openSearch() }
       Ui.Button {
         text: root.snapshot.refreshing ? "Refreshing…" : "Refresh"
-        foreground: Color.bar.text
+        foreground: root.foregroundColor
         fontSize: 9
         focusable: true
         enabled: !root.snapshot.refreshing
         onClicked: root.store.refresh()
       }
-      Ui.Button { text: "Stop weather"; foreground: Color.bar.text; fontSize: 9; focusable: true; onClicked: root.stopWeather() }
+      Ui.Button { text: "Stop weather"; foreground: root.foregroundColor; fontSize: 9; focusable: true; onClicked: root.stopWeather() }
     }
     Text {
       width: parent.width
       text: root.snapshot.error
       textFormat: Text.PlainText
-      color: Color.accent
-      font.family: Style.font.family
+      color: Commons.Color.accent
+      font.family: Commons.Style.font.family
       font.pixelSize: 9
       elide: Text.ElideRight
       visible: text !== ""
     }
     Ui.Button {
       text: "Retry save"
-      foreground: Color.bar.text
+      foreground: root.foregroundColor
       fontSize: 9
       focusable: true
       visible: root.snapshot.saveFailed === true
@@ -498,7 +499,7 @@ Item {
         id: searchBack
         anchors.left: parent.left
         text: "Back"
-        foreground: Color.bar.text
+        foreground: root.foregroundColor
         fontSize: 9
         focusable: true
         onClicked: root.panelMode = root.snapshot.ready ? "settings" : "summary"
@@ -510,17 +511,17 @@ Item {
         anchors.rightMargin: 7
         height: 30
         radius: 10
-        color: Qt.rgba(Color.bar.text.r, Color.bar.text.g, Color.bar.text.b, 0.08)
+        color: Qt.rgba(root.foregroundColor.r, root.foregroundColor.g, root.foregroundColor.b, 0.08)
         border.width: searchInput.activeFocus ? 1 : 0
-        border.color: Color.accent
+        border.color: Commons.Color.accent
         TextInput {
           id: searchInput
           anchors.fill: parent
           anchors.leftMargin: 9
           anchors.rightMargin: 9
           verticalAlignment: TextInput.AlignVCenter
-          color: Color.bar.text
-          font.family: Style.font.family
+          color: root.foregroundColor
+          font.family: Commons.Style.font.family
           font.pixelSize: 10
           selectByMouse: true
           clip: true
@@ -532,8 +533,8 @@ Item {
           verticalAlignment: Text.AlignVCenter
           text: "Search city"
           textFormat: Text.PlainText
-          color: Color.muted
-          font.family: Style.font.family
+          color: Commons.Color.muted
+          font.family: Commons.Style.font.family
           font.pixelSize: 10
           visible: searchInput.text === ""
           enabled: false
@@ -544,7 +545,7 @@ Item {
         anchors.right: parent.right
         anchors.rightMargin: root.headerRightInset
         text: root.snapshot.refreshing ? "Locating…" : "Use IP"
-        foreground: Color.bar.text
+        foreground: root.foregroundColor
         fontSize: 9
         bordered: true
         focusable: true
@@ -557,16 +558,16 @@ Item {
       text: "IP location is opt-in and is sent to wttr.in. City search uses Open-Meteo."
       textFormat: Text.PlainText
       wrapMode: Text.WordWrap
-      color: Color.muted
-      font.family: Style.font.family
+      color: Commons.Color.muted
+      font.family: Commons.Style.font.family
       font.pixelSize: 9
     }
     Text {
       width: parent.width
       text: root.snapshot.searching ? "Searching…" : root.snapshot.searchError
       textFormat: Text.PlainText
-      color: root.snapshot.searchError ? Color.accent : Color.muted
-      font.family: Style.font.family
+      color: root.snapshot.searchError ? Commons.Color.accent : Commons.Color.muted
+      font.family: Commons.Style.font.family
       font.pixelSize: 9
       visible: text !== ""
     }
@@ -579,7 +580,7 @@ Item {
         height: 32
         text: modelData.label
         tooltipText: modelData.label
-        foreground: Color.bar.text
+        foreground: root.foregroundColor
         fontSize: 10
         leftAlign: true
         bordered: true
@@ -594,8 +595,8 @@ Item {
       horizontalAlignment: Text.AlignHCenter
       text: searchInput.text.trim() === "" ? "Type a city name to search." : "No matching places."
       textFormat: Text.PlainText
-      color: Color.muted
-      font.family: Style.font.family
+      color: Commons.Color.muted
+      font.family: Commons.Style.font.family
       font.pixelSize: 10
       visible: !root.snapshot.searching && root.snapshot.searchError === "" && root.locationChoices.length === 0
     }
@@ -609,8 +610,8 @@ Item {
         anchors.verticalCenter: parent.verticalCenter
         text: (root.activeSearchPage + 1) + " / " + root.searchPageCount
         textFormat: Text.PlainText
-        color: Color.muted
-        font.family: Style.font.family
+        color: Commons.Color.muted
+        font.family: Commons.Style.font.family
         font.pixelSize: 9
       }
       PageGlyph { glyph: "›"; enabled: root.activeSearchPage + 1 < root.searchPageCount; onInvoked: root.searchPage = root.activeSearchPage + 1 }

@@ -13,7 +13,7 @@ const metrics = View.screenMetrics({
 let state = Hub.initialState()
 let result = Hub.reconcile(state, {}, { nowMs: 1000 })
 state = result.state
-assert.deepEqual(Hub.TOOLS, ["music", "weather", "codex", "agents", "notifications", "system"],
+assert.deepEqual(Hub.TOOLS, ["music", "weather", "codex", "agents", "notifications", "system", "downloads"],
   "Codex replaces Notes in the active Hub route registry")
 assert.equal(result.schedule.primary.key, "hub:music", "a neutral Island remains reachable with no live source")
 assert.equal(result.schedule.reason, "neutral")
@@ -23,7 +23,9 @@ state = Hub.navigate(state, "weather", "monitor", "hub:weather")
 assert.equal(state.expanded, false, "navigation waits for a content-derived target height")
 assert.equal(state.pendingRoute.entityKey, "hub:weather")
 let frame = Hub.frameFor(state, result.schedule, "monitor", metrics, View)
-assert.equal(frame.phase, "compact", "preflight does not start a minimum-height morph")
+assert.equal(frame.primary, null, "idle has no clickable placeholder")
+assert.equal(View.motionIntentFor(frame, metrics).primary, null)
+assert.equal(frame.phase, "idle", "preflight does not start a minimum-height morph")
 assert.equal(frame.preflight.content.key, "hub:weather")
 assert.equal(frame.preflight.widthToken, 306)
 const heightBudget = frame.preflight.heightBudget
@@ -44,7 +46,7 @@ assert.equal(frame.selected.key, "hub:weather")
 assert.equal(frame.isOwner, true)
 assert.equal(frame.geometry.card.height, 184, "the accepted bounded content height owns the expanded target")
 assert.equal(frame.titleExpandedRect.height, 184, "the shared-title endpoint uses the actual expanded height")
-assert.equal(Hub.frameFor(state, result.schedule, "other", metrics, View).phase, "compact", "expansion belongs to one monitor")
+assert.equal(Hub.frameFor(state, result.schedule, "other", metrics, View).phase, "idle", "expansion belongs to one monitor")
 
 const shortMetrics = View.screenMetrics({
   screen: { width: 1920, height: 150 },
@@ -65,21 +67,10 @@ assert.equal(safelyCollapsed.expanded, false, "an open card collapses when its c
 assert.equal(safelyCollapsed.entityKey, "hub:weather", "safe collapse retains the exact deliberate route")
 assert.equal(safelyCollapsed.layoutError, "content-too-tall")
 
-state = Hub.toggleChooser(state, "monitor")
-assert.equal(state.chooserOpen, true)
-const selectedBeforeChooser = state.entityKey
-state = Hub.chooseTool(state, "notifications", "monitor")
-assert.equal(state.entityKey, selectedBeforeChooser, "the current activity stays selected during utility preflight")
-assert.equal(state.pendingRoute.entityKey, "hub:notifications", "chooser navigation deliberately selects the canonical tool route")
-assert.equal(state.chooserOpen, true, "the chooser covers the retained body until the replacement is sized")
-const cancelledChoice = Hub.closeChooser(state, "monitor")
-assert.equal(cancelledChoice.pendingRoute, null, "Escape from the chooser also cancels its uncommitted route")
-assert.equal(cancelledChoice.entityKey, selectedBeforeChooser)
-state = Hub.toggleChooser(cancelledChoice, "monitor")
-state = Hub.chooseTool(state, "notifications", "monitor")
+state = Hub.navigate(state, "notifications", "monitor")
+assert.equal(state.entityKey, "hub:weather", "direct navigation keeps the old activity until layout is ready")
 state = Hub.acceptLayout(state, { screen: "monitor", key: "hub:notifications", widthToken: 306, expectedWidthToken: 306, preferredHeight: 216, heightBudget })
 assert.equal(state.entityKey, "hub:notifications")
-assert.equal(state.chooserOpen, false)
 state = Hub.collapse(state)
 assert.equal(state.tool, "notifications", "collapse does not rewrite the last deliberate expanded route")
 assert.equal(state.expanded, false)
@@ -94,14 +85,10 @@ earlyChoice = Hub.acceptLayout(earlyChoice, {
   preferredHeight: 184,
   heightBudget: earlyChoiceFrame.preflight.heightBudget
 })
-earlyChoice = Hub.toggleChooser(earlyChoice, "monitor")
-const weatherChoice = Hub.chooseTool(earlyChoice, "weather", "monitor")
-assert.equal(weatherChoice.entityKey, "hub:music", "an early chooser selection retains the presented Music route during Weather preflight")
-assert.equal(weatherChoice.pendingRoute.entityKey, "hub:weather", "an early Weather selection queues its semantic route instead of collapsing the card")
-assert.equal(weatherChoice.chooserOpen, true, "the chooser remains visible until the Weather layout commits")
-assert.equal(Hub.chooseTool(weatherChoice, "weather", "monitor"), weatherChoice,
-  "duplicate early Weather presses are idempotent while the same preflight is pending")
-
+const weatherChoice = Hub.navigate(earlyChoice, "weather", "monitor")
+assert.equal(weatherChoice.entityKey, "hub:music")
+assert.equal(weatherChoice.pendingRoute.entityKey, "hub:weather")
+assert.equal(Hub.navigate(weatherChoice, "weather", "monitor"), weatherChoice)
 const blocked = Array.from({ length: 3 }, (_, index) => ({
   key: "system:process:D:" + (80 + index) + ":4321",
   label: "Uninterruptible wait",
@@ -136,23 +123,23 @@ const compactSources = {
 const compactResult = Hub.reconcile(Hub.initialState(), compactSources, { nowMs: 3000 })
 const compactFrame = Hub.frameFor(compactResult.state, compactResult.schedule, "monitor", metrics, View)
 assert.equal(compactFrame.primary.compactText, "3 blocked procs", "a process pair keeps its count and noun")
-assert.equal(compactFrame.secondary.compactText, "Discord", "a notification pair keeps the app name")
+assert.equal(compactFrame.secondary.minimalValue, "•", "the notification bubble carries its minimal indicator")
 assert.equal(compactFrame.primary.key, blocked[0].key, "the system card keeps the exact selected process key")
 assert.equal(compactFrame.secondary.key, "notification:live", "the notification card keeps the exact selected key")
-assert.equal(compactFrame.geometry.card.width, 176, "hub primary takes the larger share")
-assert.equal(compactFrame.geometry.secondary.width, 68, "hub secondary keeps an icon and short semantic cue")
+assert.equal(compactFrame.geometry.card.width, 222, "hub primary takes the larger share")
+assert.equal(compactFrame.geometry.secondary.width, 22, "the secondary uses the bar-height icon bubble")
 assert.equal(compactFrame.geometry.secondary.x - (compactFrame.geometry.card.x + compactFrame.geometry.card.width), 6,
   "hub compact cards keep the existing gap")
-assert.equal(compactFrame.splitMinimal, false, "a labelled hub pair never takes the minimal renderer")
-assert.equal(compactFrame.primary.compactCentered, false, "paired activities retain their independent aligned lanes")
+assert.equal(View.motionIntentFor(compactFrame, { bar: metrics.bar }).primary.role, "primary", "the horizontal primary keeps its compact label")
+assert.equal(compactFrame.primary.compactCentered, false, "the horizontal primary keeps its leading alignment beside the bubble")
 const agentPair = Hub.frameFor(compactResult.state, Object.assign({}, compactResult.schedule, {
   primary: compactResult.schedule.byTool.weather,
   secondary: compactResult.schedule.byTool.agents
 }), "monitor", metrics, View)
 assert.equal(agentPair.secondary.icon, "robot", "the short agent presentation retains its semantic robot identity")
-assert.equal(agentPair.secondary.compactText, "Working", "the small secondary explains its live status rather than showing a bare count")
+assert.equal(agentPair.secondary.minimalValue, "1", "the agent bubble carries the working count")
 assert.equal(agentPair.secondary.value, "1 agent working", "the full activity record retains the working count")
-assert.ok(agentPair.geometry.secondary.width > 64, "secondary media stays above its artwork-only breakpoint")
+assert.equal(agentPair.geometry.secondary.width, agentPair.geometry.secondary.height, "the second activity fits a round bubble")
 const blockedSchedule = Object.assign({}, compactResult.schedule, {
   primary: compactResult.schedule.byKey[blocked[0].key],
   secondary: null
@@ -198,7 +185,7 @@ const sideMetrics = View.screenMetrics({
   bar: { position: "left", size: 26 }
 })
 const sideFrame = Hub.frameFor(compactResult.state, compactResult.schedule, "monitor", sideMetrics, View)
-assert.equal(sideFrame.splitMinimal, true, "vertical bars retain their existing minimal renderer")
+assert.equal(View.motionIntentFor(sideFrame, { bar: sideMetrics.bar }).primary.role, "minimal", "vertical bars retain their existing minimal renderer")
 assert.equal(sideFrame.secondary.compactText, undefined, "vertical secondary cards do not opt into horizontal text")
 const criticalResult = Hub.reconcile(Hub.initialState(), Object.assign({}, compactSources, {
   notifications: Object.assign({}, compactSources.notifications, {
@@ -207,11 +194,9 @@ const criticalResult = Hub.reconcile(Hub.initialState(), Object.assign({}, compa
 }), { nowMs: 3000 })
 assert.equal(criticalResult.schedule.byKey["notification:live"].minimalValue, "!", "critical minimal notifications retain urgency")
 const idleResult = Hub.reconcile(Hub.initialState(), { agents: { enabled: true, sessions: [] } }, { nowMs: 3000 })
-const idleFrame = Hub.frameFor(idleResult.state, Object.assign({}, idleResult.schedule, {
-  primary: idleResult.schedule.byTool.agents,
-  secondary: null
-}), "monitor", metrics, View)
-assert.equal(idleFrame.primary.compactText, "Agents idle", "idle compact copy still identifies the activity")
+const idleFrame = Hub.frameFor(idleResult.state, idleResult.schedule, "monitor", metrics, View)
+assert.equal(idleFrame.visible, false)
+assert.equal(View.motionIntentFor(idleFrame, metrics).capsule, null, "idle releases the painted capsule")
 for (const phase of ["attention", "terminal"]) {
   const resourceEvent = { key: "system:cpu-pressure", label: "CPU pressure", value: "11% for 15s", phase, startedAt: 1000, occurredAt: 3000, eligibleUntil: 9000 }
   const resources = Hub.reconcile(Hub.initialState(), { system: { available: true, events: [resourceEvent], sampledAt: 3000 } }, { nowMs: 3000 })

@@ -1,11 +1,11 @@
 pragma ComponentBehavior: Bound
 
 import QtQuick
-import qs.Commons
-import qs.Ui as Ui
+import qs.Commons as Commons
 
 Item {
   id: root
+  property color foregroundColor: Commons.Color.bar.text
 
   required property var service
   required property string screenName
@@ -13,8 +13,6 @@ Item {
   property bool active: true
   property bool interactive: false
   property bool controlsEnabled: true
-  property bool chooserNavigationEnabled: false
-  property bool chooserSelectionEnabled: false
   property bool reducedMotion: false
   property bool titleOwnedByBody: false
   property bool artworkOwnedByBody: false
@@ -34,13 +32,9 @@ Item {
     }
     return ""
   }
-  readonly property bool chooserOpen: active && interactive && service && service.hubState
-    && service.hubState.expanded && service.hubState.ownerScreen === screenName
-    && service.hubState.entityKey === (content && content.key ? content.key : "")
-    && service.hubState.chooserOpen === true
   readonly property var activePanel: tool === "codex" ? codexLoader.item
     : tool === "weather" ? weatherLoader.item
-    : tool === "agents" ? agentsLoader.item
+    : tool === "downloads" ? downloadPanel : tool === "agents" ? agentsLoader.item
     : tool === "notifications" ? notificationLoader.item
     : tool === "system" ? systemLoader.item : null
   readonly property real panelPreferredHeight: {
@@ -48,10 +42,9 @@ Item {
     return isFinite(value) && value > 0 ? value : 0
   }
   readonly property bool measurementReady: active && widthToken > 0 && preferredHeight > 0
-    && (chooserOpen || tool === "music" || panelPreferredHeight > 0)
+    && (tool === "music" || panelPreferredHeight > 0)
   readonly property real preferredHeight: {
     if (!active) return 0
-    if (chooserOpen) return chooserColumn.implicitHeight + 32
     if (tool === "music") return content && content.media
       ? mediaContent.preferredHeight : emptyMusic.implicitHeight + 64
     return panelPreferredHeight > 0 ? panelPreferredHeight + 32 : 0
@@ -96,10 +89,44 @@ Item {
     id: detailBody
     anchors.fill: parent
     anchors.margins: root.tool === "music" ? 0 : 12
-    visible: root.active && !root.chooserOpen
+    visible: root.active
     enabled: root.interactive && root.controlsEnabled
 
+    Column {
+      id: downloadPanel
+      width: parent.width
+      spacing: 6
+      visible: root.tool === "downloads"
+      readonly property var snapshot: root.service && root.service.downloads ? root.service.downloads.snapshot : ({})
+      readonly property var rows: (snapshot.active || []).concat(snapshot.recent || [])
+      readonly property real preferredHeight: implicitHeight
+      Text {
+        text: "Downloads"
+        color: root.foregroundColor
+        font.family: Commons.Style.font.family
+        font.weight: Font.DemiBold
+      }
+      Text {
+        visible: !downloadPanel.rows.length
+        text: downloadPanel.snapshot.available ? "No recent downloads" : "Downloads folder unavailable"
+        color: root.foregroundColor
+        font.family: Commons.Style.font.family
+      }
+      Repeater {
+        model: downloadPanel.rows.slice(0, 8)
+        delegate: Text {
+          required property var modelData
+          width: downloadPanel.width
+          text: (modelData.completed ? "✓ " : "↓ ") + modelData.name + " · " + Number(modelData.size / 1048576).toLocaleString(Qt.locale(), "f", 1) + " MiB"
+          textFormat: Text.PlainText
+          elide: Text.ElideMiddle
+          color: root.foregroundColor
+          font.family: Commons.Style.font.family
+        }
+      }
+    }
     MediaContent {
+      foregroundColor: root.foregroundColor
       id: mediaContent
       anchors.fill: parent
       visible: root.tool === "music" && !!root.content.media
@@ -110,7 +137,6 @@ Item {
       reducedMotion: root.reducedMotion
       titleOwnedByBody: root.titleOwnedByBody
       artworkOwnedByBody: root.artworkOwnedByBody
-      headerRightInset: 32
       sourceLabel: root.mediaSourceLabel
       canCyclePlayer: root.mediaPlayers.length > 1
       onActionRequested: function(actionId) { root.service.music.control(root.content.media.trackToken, actionId) }
@@ -127,8 +153,8 @@ Item {
       wrapMode: Text.WordWrap
       horizontalAlignment: Text.AlignHCenter
       textFormat: Text.PlainText
-      color: Color.muted
-      font.family: Style.font.family
+      color: Commons.Color.muted
+      font.family: Commons.Style.font.family
       font.pixelSize: 12
     }
 
@@ -136,21 +162,36 @@ Item {
       id: codexLoader
       anchors.fill: parent
       active: root.active && root.tool === "codex"
-      sourceComponent: Component { CodexPanel { usage: root.service.codexUsage } }
+      sourceComponent: Component {
+        CodexPanel {
+          foregroundColor: root.foregroundColor
+          usage: root.service.codexUsage
+        }
+      }
     }
 
     Loader {
       id: weatherLoader
       anchors.fill: parent
       active: root.active && root.tool === "weather"
-      sourceComponent: Component { WeatherPanel { store: root.service.weather } }
+      sourceComponent: Component {
+        WeatherPanel {
+          foregroundColor: root.foregroundColor
+          store: root.service.weather
+        }
+      }
     }
 
     Loader {
       id: agentsLoader
       anchors.fill: parent
       active: root.active && root.tool === "agents"
-      sourceComponent: Component { AgentsPanel { store: root.service.agents } }
+      sourceComponent: Component {
+        AgentsPanel {
+          foregroundColor: root.foregroundColor
+          store: root.service.agents
+        }
+      }
     }
 
     Loader {
@@ -159,6 +200,7 @@ Item {
       active: root.active && root.tool === "notifications"
       sourceComponent: Component {
         NotificationPanel {
+          foregroundColor: root.foregroundColor
           store: root.service.notifications
           content: root.content.notification || null
         }
@@ -171,112 +213,11 @@ Item {
       active: root.active && root.tool === "system"
       sourceComponent: Component {
         SystemPanel {
+          foregroundColor: root.foregroundColor
           store: root.service.systemActivity
           content: root.content.systemEvent || null
         }
       }
     }
   }
-
-  Item {
-    id: chooserBody
-    anchors.fill: parent
-    anchors.margins: 12
-    visible: root.chooserOpen
-    enabled: visible
-
-    Column {
-      id: chooserColumn
-      width: parent.width
-      spacing: 2
-
-      Item {
-        id: chooserHeader
-        width: parent.width
-        implicitHeight: Math.max(chooserHeaderText.implicitHeight, chooserButton.height)
-
-        Text {
-          id: chooserHeaderText
-          width: parent.width - 36
-          text: "Open activity"
-          textFormat: Text.PlainText
-          color: Color.bar.text
-          font.family: Style.font.family
-          font.pixelSize: 14
-          font.weight: Font.DemiBold
-          elide: Text.ElideRight
-        }
-      }
-
-      Repeater {
-        id: chooserRepeater
-        model: [
-          { id: "music", label: "Music", icon: "media" },
-          { id: "weather", label: "Weather", icon: "weather" },
-          { id: "codex", label: "Codex", icon: "codex" },
-          { id: "agents", label: "Agents", icon: "robot" },
-          { id: "notifications", label: "Notifications", icon: "bell" },
-          { id: "system", label: "System", icon: "CPU" }
-        ]
-
-        delegate: Ui.Button {
-          id: chooserToolButton
-          required property var modelData
-          width: chooserColumn.width
-          text: modelData.label
-          iconText: ""
-          leftAlign: true
-          leftPadding: chooserToolButton.horizontalPadding + 20
-          selected: root.tool === modelData.id
-          foreground: Color.bar.text
-          fontSize: 11
-          focusable: root.chooserSelectionEnabled
-          enabled: root.chooserSelectionEnabled
-          Accessible.role: Accessible.Button
-          Accessible.name: "Open " + modelData.label
-          Accessible.focusable: enabled
-          Accessible.onPressAction: if (enabled) root.service.chooseHubTool(modelData.id, root.screenName)
-          onClicked: root.service.chooseHubTool(modelData.id, root.screenName)
-
-          ActivityIcon {
-            anchors.left: parent.left
-            anchors.leftMargin: 7
-            anchors.verticalCenter: parent.verticalCenter
-            name: chooserToolButton.modelData.icon
-            size: 14
-            color: Color.bar.text
-            fallbackText: ""
-          }
-        }
-      }
-    }
-  }
-
-  Ui.Button {
-    id: chooserButton
-    anchors.top: parent.top
-    anchors.right: parent.right
-    anchors.topMargin: 8
-    anchors.rightMargin: 10
-    width: 30
-    height: 26
-    z: 4
-    visible: root.active && root.interactive
-    enabled: visible && root.chooserNavigationEnabled
-    text: root.chooserOpen ? "×" : "•••"
-    foreground: Color.bar.text
-    fontSize: 11
-    focusable: visible
-    tooltipText: root.chooserOpen ? "Close activity chooser" : "Open activity chooser"
-    Accessible.role: Accessible.Button
-    Accessible.name: tooltipText
-    Accessible.focusable: visible
-    Accessible.onPressAction: if (enabled) root.service.toggleHubChooser(root.screenName)
-    onClicked: root.service.toggleHubChooser(root.screenName)
-  }
-
-  onChooserOpenChanged: if (chooserOpen) Qt.callLater(function() {
-    var first = chooserRepeater.itemAt(0)
-    if (root.chooserOpen && first) first.forceActiveFocus()
-  })
 }

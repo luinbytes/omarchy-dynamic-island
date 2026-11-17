@@ -192,7 +192,7 @@ assert.doesNotMatch(storeSource, /showRecentHistory|setDoNotDisturb|clearHistory
 const panelSource = fs.readFileSync(require.resolve("../../shell/plugins/island/NotificationPanel.qml"), "utf8")
 assert.match(panelSource, /required property var store/, "the panel consumes the domain store")
 assert.match(panelSource, /property var content: null/, "the selected activity can retain its exact notification")
-assert.match(panelSource, /property real headerRightInset: 32/, "the global ellipsis owns the upper-right inset")
+assert.match(panelSource, /property real headerRightInset: 0/, "the activity has the full header width")
 assert.match(panelSource, /readonly property real preferredHeight: Math\.ceil\(contentColumn\.implicitHeight\)/,
   "semantic content and font metrics own preferred height")
 assert.doesNotMatch(panelSource, /Flickable|ListView|ScrollView|WheelHandler/, "notification pages never scroll")

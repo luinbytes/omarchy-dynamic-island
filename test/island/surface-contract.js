@@ -6,6 +6,8 @@ const ActivityModel = require("../../shell/plugins/island/ActivityModel.js")
 const source = fs.readFileSync(require.resolve("../../shell/plugins/island/IslandSurface.qml"), "utf8")
 const serviceSource = fs.readFileSync(require.resolve("../../shell/plugins/island/Service.qml"), "utf8")
 const hubContentSource = fs.readFileSync(require.resolve("../../shell/plugins/island/HubContent.qml"), "utf8")
+assert.doesNotMatch(hubContentSource, /chooser|Open activity|•••/i, "expanded activities contain no tool launcher")
+assert.match(source, /event.key === Qt.Key_Escape[\s\S]*?root.close\("escape"\)/, "Escape dismisses the current activity directly")
 const activityVisualSource = fs.readFileSync(require.resolve("../../shell/plugins/island/ActivityVisual.qml"), "utf8")
 assert.match(source, /WlrLayershell\.layer:\s*WlrLayer\.Top/, "island shares the native bar layer and yields to fullscreen applications")
 assert.doesNotMatch(source, /WlrLayershell\.layer:\s*WlrLayer\.Overlay/, "island is not classified as a modal overlay")
@@ -13,14 +15,10 @@ assert.match(source, /id:\s*layoutPreflight[\s\S]*visible:\s*false[\s\S]*reportL
   "a pending route is measured before the first expanded motion")
 assert.match(source, /expected\.key !== key \|\| Math\.round\(widthToken\) !== expected\.widthToken/,
   "layout reports are guarded by exact key and target width")
-assert.match(source, /closeHubChooser\(root\.screenName\)[\s\S]*root\.close\("escape"\)/,
-  "Escape closes the chooser before collapsing its current activity")
 assert.equal((activityVisualSource.match(/reportLayout:\s*root\.interactive/g) || []).length, 1,
   "only the incoming interactive activity body reports local layout changes")
 assert.doesNotMatch(hubContentSource, /id:\s*toolRow|anchors\.bottomMargin:\s*root\.tool === "music" \? 78 : 48/,
   "expanded content has no permanent bottom navigation")
-assert.match(hubContentSource, /id:\s*chooserRepeater[\s\S]*\{ id: "music"[\s\S]*\{ id: "system"/,
-  "the transient chooser keeps all six tools reachable")
 assert.match(hubContentSource, /onContentKeyChanged:\s*layoutReportTimer\.restart\(\)/,
   "a same-size replacement identity publishes its own guarded layout")
 assert.match(hubContentSource, /onHeightBudgetChanged:\s*layoutReportTimer\.restart\(\)/,
@@ -31,14 +29,12 @@ assert.match(activityVisualSource, /id:\s*capsuleBackground[\s\S]*?ShapePath[\s\
   "one closed ShapePath consumes the pure outline perimeter")
 assert.equal((source.match(/backgroundVisible: !root\.unifiedSurface/g) || []).length, 2,
   "both content bodies relinquish their individual fills to the unified surface")
-assert.match(source, /capsuleOutline: ViewModel\.activityOutline\(motion\.visual\.capsule\.rect, root\.metrics\)/,
+assert.match(source, /capsuleOutline: ViewModel\.barIslandOutline\(root\.primaryRect, root\.metrics\)/,
   "the hub draws one continuous perimeter from the persistent capsule")
 assert.match(source, /PathSvg \{ path: root\.capsuleOutline\.perimeter \}/,
   "the capsule outline drives the unified fill")
 assert.match(source, /firstInputOutline: root\.closedPeekPresentation \? root\.peekOutline\s+: root\.unifiedSurface \? root\.capsuleOutline : bodyOne\.outline/,
   "closed peeks use their capsule perimeter while the shared hub input stays persistent")
-assert.doesNotMatch(source, /combinedActivityOutline\(motion\.visual\.bodies/,
-  "retiring content regions cannot resize the unified input or fill outline")
 assert.match(source, /ViewModel\.activityKeyAtPoint\(motion\.visual\.bodies, x \+ mouse\.x, y \+ mouse\.y\)/,
   "the internal space routes to a real sampled activity key")
 assert.doesNotMatch(activityVisualSource, /id:\s*shoulderShape|root\.outline\.shoulders\[index\]/,
@@ -49,20 +45,10 @@ assert.equal((activityVisualSource.match(/layer\.effect:/g) || []).length, 2,
   "both fixed-position artwork layers retain the shared rounded mask during a metadata fade")
 assert.equal((activityVisualSource.match(/layer\.effect: MultiEffect \{ maskEnabled: true; maskSource: sharedArtMask \}/g) || []).length, 2,
   "the image effects only mask the outgoing and incoming artwork corners")
-assert.match(activityVisualSource, /readonly property bool hubNavigationInteractive: root\.interactive[\s\S]*hubState\.ownerScreen === root\.screenName[\s\S]*hubState\.entityKey === root\.visual\.key[\s\S]*root\.visual\.incoming\.expanded === true[\s\S]*content\.hub === true[\s\S]*content\.key === root\.visual\.key/,
-  "only the current expanded Hub route can receive early navigation input")
-assert.match(activityVisualSource, /readonly property bool chooserSelectionInteractive: root\.chooserOwnsHeader[\s\S]*readonly property bool incomingInteractive: root\.controlsInteractive \|\| root\.hubNavigationInteractive[\s\S]*id: incomingLayer\s+enabled: root\.incomingInteractive/,
-  "Hub navigation is the sole exception to the settled content-input gate")
-assert.match(activityVisualSource, /controlsEnabled: root\.controlsInteractive\s+chooserNavigationEnabled: root\.hubNavigationInteractive\s+chooserSelectionEnabled: root\.chooserSelectionInteractive/,
-  "Hub navigation capabilities are passed separately from general controls")
-assert.match(hubContentSource, /property bool chooserSelectionEnabled: false[\s\S]*focusable: root\.chooserSelectionEnabled\s+enabled: root\.chooserSelectionEnabled/,
-  "only chooser rows become actionable during the bounded geometry morph")
 assert.match(activityVisualSource, /actionsEnabled: root\.controlsInteractive/,
   "ordinary activity actions retain the settled-geometry input gate")
 assert.match(hubContentSource, /id: detailBody[\s\S]*enabled: root\.interactive && root\.controlsEnabled/,
   "the chooser exception cannot enable the current detail body")
-assert.match(hubContentSource, /id: chooserButton[\s\S]*visible: root\.active && root\.interactive\s+enabled: visible && root\.chooserNavigationEnabled/,
-  "the current Hub can open its chooser before the geometry settles")
 assert.match(activityVisualSource, /outgoing\.offsetY[\s\S]*incoming\.offsetY/,
   "content replacement consumes the motion owner's signed vertical displacement")
 assert.match(activityVisualSource, /ViewModel\.titleSample\(root\.visual[\s\S]*titleSampleRect/,
@@ -71,10 +57,21 @@ assert.match(activityVisualSource, /outgoing\.offsetX[\s\S]*incoming\.offsetX/,
   "both retained content layers consume the region projection coordinates")
 assert.match(activityVisualSource, /sharedTitle\.offsetY/,
   "the one shared title consumes its identity handoff displacement")
-assert.ok((activityVisualSource.match(/opacity:\s*1/g) || []).length >= 4,
-  "the activity body, content layers and shared title stay fully opaque")
-assert.ok((source.match(/intersection:\s*Intersection\.Subtract/g) || []).length >= 4,
-  "the input mask subtracts the same quarter-circle shoulder cutouts")
+assert.match(activityVisualSource, /opacity: root\.visual \? root\.visual\.opacity : 1/,
+  "the secondary content follows the split ink sample")
+const closeSlot = source.match(/MouseArea \{[^{}]*onClicked: root\.close\("bar-click"\)[^{}]*\}/)
+assert.ok(closeSlot, "the original bar slot remains a close target")
+const closeZ = Number(closeSlot[0].match(/\bz: (\d+)/)[1])
+const expandedZ = [...source.matchAll(/z: visual && visual\.role === "expanded" \? (\d+)/g)]
+assert.equal(expandedZ.length, 2)
+assert.ok(expandedZ.every(match => Number(match[1]) > closeZ),
+  "expanded controls on either activity receive clicks before the bar-slot fallback")
+const inputRegion = fs.readFileSync(require.resolve("../../shell/plugins/island/OutlineRegion.qml"), "utf8")
+assert.match(inputRegion, /intersection: Intersection.Subtract\s+shape: RegionShape.Ellipse/,
+  "each shoulder subtracts the painted quarter-circle cutout")
+assert.equal((inputRegion.match(/Shoulder \{ geometry:/g) || []).length, 2, "both shoulders contribute to each input region")
+assert.equal((source.match(/OutlineRegion \{ outline: root\.(first|second)InputActive/g) || []).length, 2,
+  "each active target supplies its own rounded outline")
 assert.match(source, /outlines:\s*\{ primary: outlineFor\(bodyOne\), secondary: outlineFor\(bodyTwo\) \}/,
   "diagnostics expose outline crop bounds without changing physical click rectangles")
 assert.equal((source.match(/outlineMetrics:\s*root\.metrics/g) || []).length, 2,
@@ -94,8 +91,8 @@ assert.match(serviceSource, /function eligiblePeekScreens\(\)[\s\S]*result\.push
   "one event targets every unique visible non-fullscreen Island")
 assert.match(source, /screenMonitor:[\s\S]*Hyprland\.monitorFor\(screen\)[\s\S]*screenFullscreen:[\s\S]*hasFullscreen/,
   "each surface reacts directly to its monitor fullscreen workspace")
-assert.match(source, /visible:\s*!!screen[\s\S]*id:\s*capsule[\s\S]*visible:\s*root\.presenterAvailable/,
-  "the transparent layer stays mapped while hidden content disappears with the bar")
+assert.match(source, /Binding on visible \{\s*value: !!root\.anchorWindow && root\.anchorWindow\.visible && !!root\.anchorWindow\.screen\s*delayed: true[\s\S]*id:\s*capsule[\s\S]*visible:\s*root\.presenterAvailable/,
+  "the layer follows the host mapping and independently gates island content")
 assert.match(source, /onPresenterAvailableChanged:[\s\S]*motionCommitTimer\.stop\(\)[\s\S]*motion\.abandon\(\)[\s\S]*service\.collapse\("anchor-lost"\)/,
   "anchor loss clears pixels and releases an expanded owner without an exit animation")
 assert.match(serviceSource, /active\.expiresAt <= Date\.now\(\)/,
@@ -121,9 +118,13 @@ const state = {
 }
 state.root = state
 const context = vm.createContext(state)
-for (const match of source.matchAll(/^  function (\w+)\(([^\n]*)\) \{\n([\s\S]*?)^  \}/gm)) {
+for (const match of (source + "\n" + inputRegion).matchAll(/^  function (\w+)\(([^\n]*)\) \{\n([\s\S]*?)^  \}/gm)) {
   state[match[1]] = vm.runInContext(`(function(${match[2]}) {\n${match[3]}\n})`, context)
 }
+// A 13.5 px shoulder ending on the host seam must stop there after snapping.
+const shoulder = { x: 744.5, y: 544.5, width: 13.5, height: 13.5 }
+assert.equal(Math.round(shoulder.x) + state.regionWidth(shoulder), 758)
+assert.equal(Math.round(shoulder.y) + state.regionHeight(shoulder), 558)
 state.expandKey = function(key, reason) {
   assert.equal(key, "primary")
   assert.equal(reason, "summon")

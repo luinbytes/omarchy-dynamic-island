@@ -1,7 +1,3 @@
-function own(object, key) {
-  return Object.prototype.hasOwnProperty.call(object || {}, key)
-}
-
 function finite(value, fallback) {
   return typeof value === "number" && isFinite(value) ? value : fallback
 }
@@ -38,15 +34,10 @@ function outlinePiece(x, y, width, height, topLeftRadius, topRightRadius, bottom
   }
 }
 
-function shoulder(box, cutout, start, first, second, clockwise, radius) {
+function shoulder(box, cutout) {
   return {
     box: box,
-    cutout: cutout,
-    start: start,
-    first: first,
-    second: second,
-    clockwise: clockwise,
-    radius: radius
+    cutout: cutout
   }
 }
 
@@ -63,101 +54,33 @@ function svgLine(parts, point, bounds) {
   parts.push("L " + svgPoint(point, bounds))
 }
 
-function svgArc(parts, radius, clockwise, point, bounds) {
+function svgArc(parts, radius, point, bounds) {
   if (radius <= 0.01) {
     svgLine(parts, point, bounds)
     return
   }
-  parts.push("A " + svgNumber(radius) + " " + svgNumber(radius) + " 0 0 " + (clockwise ? "1" : "0") + " " + svgPoint(point, bounds))
+  parts.push("A " + svgNumber(radius) + " " + svgNumber(radius) + " 0 0 1 " + svgPoint(point, bounds))
 }
 
 function svgCubic(parts, first, second, point, bounds) {
   parts.push("C " + svgPoint(first, bounds) + " " + svgPoint(second, bounds) + " " + svgPoint(point, bounds))
 }
 
-function outlinePerimeter(body, shoulders, edge, bounds, connected) {
+function outlinePerimeter(body, bounds) {
   var left = body.x
   var top = body.y
   var right = body.x + body.width
   var bottom = body.y + body.height
-  var upper = shoulders[0]
-  var lower = shoulders[1]
   var parts = ["M " + svgPoint({ x: left + body.topLeftRadius, y: top }, bounds)]
 
-  if (!connected) {
-    svgLine(parts, { x: right - body.topRightRadius, y: top }, bounds)
-    svgArc(parts, body.topRightRadius, true, { x: right, y: top + body.topRightRadius }, bounds)
-    svgLine(parts, { x: right, y: bottom - body.bottomRightRadius }, bounds)
-    svgArc(parts, body.bottomRightRadius, true, { x: right - body.bottomRightRadius, y: bottom }, bounds)
-    svgLine(parts, { x: left + body.bottomLeftRadius, y: bottom }, bounds)
-    svgArc(parts, body.bottomLeftRadius, true, { x: left, y: bottom - body.bottomLeftRadius }, bounds)
-    svgLine(parts, { x: left, y: top + body.topLeftRadius }, bounds)
-    svgArc(parts, body.topLeftRadius, true, { x: left + body.topLeftRadius, y: top }, bounds)
-    parts.push("Z")
-    return parts.join(" ")
-  }
-
-  if (edge === "top") {
-    svgLine(parts, { x: right - body.topRightRadius, y: top }, bounds)
-    svgArc(parts, body.topRightRadius, true, { x: right, y: top + body.topRightRadius }, bounds)
-    svgLine(parts, lower.first, bounds)
-    svgLine(parts, lower.start, bounds)
-    svgArc(parts, lower.radius, !lower.clockwise, lower.second, bounds)
-    svgLine(parts, { x: right, y: bottom - body.bottomRightRadius }, bounds)
-    svgArc(parts, body.bottomRightRadius, true, { x: right - body.bottomRightRadius, y: bottom }, bounds)
-    svgLine(parts, { x: left + body.bottomLeftRadius, y: bottom }, bounds)
-    svgArc(parts, body.bottomLeftRadius, true, { x: left, y: bottom - body.bottomLeftRadius }, bounds)
-    svgLine(parts, upper.second, bounds)
-    svgArc(parts, upper.radius, upper.clockwise, upper.start, bounds)
-    svgLine(parts, upper.first, bounds)
-    svgLine(parts, { x: left, y: top + body.topLeftRadius }, bounds)
-    svgArc(parts, body.topLeftRadius, true, { x: left + body.topLeftRadius, y: top }, bounds)
-  } else if (edge === "bottom") {
-    svgLine(parts, { x: right - body.topRightRadius, y: top }, bounds)
-    svgArc(parts, body.topRightRadius, true, { x: right, y: top + body.topRightRadius }, bounds)
-    svgLine(parts, lower.second, bounds)
-    svgArc(parts, lower.radius, lower.clockwise, lower.start, bounds)
-    svgLine(parts, lower.first, bounds)
-    svgLine(parts, { x: right, y: bottom - body.bottomRightRadius }, bounds)
-    svgArc(parts, body.bottomRightRadius, true, { x: right - body.bottomRightRadius, y: bottom }, bounds)
-    svgLine(parts, { x: left + body.bottomLeftRadius, y: bottom }, bounds)
-    svgArc(parts, body.bottomLeftRadius, true, { x: left, y: bottom - body.bottomLeftRadius }, bounds)
-    svgLine(parts, upper.first, bounds)
-    svgLine(parts, upper.start, bounds)
-    svgArc(parts, upper.radius, !upper.clockwise, upper.second, bounds)
-    svgLine(parts, { x: left, y: top + body.topLeftRadius }, bounds)
-    svgArc(parts, body.topLeftRadius, true, { x: left + body.topLeftRadius, y: top }, bounds)
-  } else if (edge === "left") {
-    svgLine(parts, upper.first, bounds)
-    svgLine(parts, upper.start, bounds)
-    svgArc(parts, upper.radius, !upper.clockwise, upper.second, bounds)
-    svgLine(parts, { x: right - body.topRightRadius, y: top }, bounds)
-    svgArc(parts, body.topRightRadius, true, { x: right, y: top + body.topRightRadius }, bounds)
-    svgLine(parts, { x: right, y: bottom - body.bottomRightRadius }, bounds)
-    svgArc(parts, body.bottomRightRadius, true, { x: right - body.bottomRightRadius, y: bottom }, bounds)
-    svgLine(parts, lower.second, bounds)
-    svgArc(parts, lower.radius, lower.clockwise, lower.start, bounds)
-    svgLine(parts, lower.first, bounds)
-    svgLine(parts, { x: left + body.bottomLeftRadius, y: bottom }, bounds)
-    svgArc(parts, body.bottomLeftRadius, true, { x: left, y: bottom - body.bottomLeftRadius }, bounds)
-    svgLine(parts, { x: left, y: top + body.topLeftRadius }, bounds)
-    svgArc(parts, body.topLeftRadius, true, { x: left + body.topLeftRadius, y: top }, bounds)
-  } else {
-    svgLine(parts, upper.second, bounds)
-    svgArc(parts, upper.radius, upper.clockwise, upper.start, bounds)
-    svgLine(parts, upper.first, bounds)
-    svgLine(parts, { x: right - body.topRightRadius, y: top }, bounds)
-    svgArc(parts, body.topRightRadius, true, { x: right, y: top + body.topRightRadius }, bounds)
-    svgLine(parts, { x: right, y: bottom - body.bottomRightRadius }, bounds)
-    svgArc(parts, body.bottomRightRadius, true, { x: right - body.bottomRightRadius, y: bottom }, bounds)
-    svgLine(parts, lower.first, bounds)
-    svgLine(parts, lower.start, bounds)
-    svgArc(parts, lower.radius, !lower.clockwise, lower.second, bounds)
-    svgLine(parts, { x: left + body.bottomLeftRadius, y: bottom }, bounds)
-    svgArc(parts, body.bottomLeftRadius, true, { x: left, y: bottom - body.bottomLeftRadius }, bounds)
-    svgLine(parts, { x: left, y: top + body.topLeftRadius }, bounds)
-    svgArc(parts, body.topLeftRadius, true, { x: left + body.topLeftRadius, y: top }, bounds)
-  }
+  svgLine(parts, { x: right - body.topRightRadius, y: top }, bounds)
+  svgArc(parts, body.topRightRadius, { x: right, y: top + body.topRightRadius }, bounds)
+  svgLine(parts, { x: right, y: bottom - body.bottomRightRadius }, bounds)
+  svgArc(parts, body.bottomRightRadius, { x: right - body.bottomRightRadius, y: bottom }, bounds)
+  svgLine(parts, { x: left + body.bottomLeftRadius, y: bottom }, bounds)
+  svgArc(parts, body.bottomLeftRadius, { x: left, y: bottom - body.bottomLeftRadius }, bounds)
+  svgLine(parts, { x: left, y: top + body.topLeftRadius }, bounds)
+  svgArc(parts, body.topLeftRadius, { x: left + body.topLeftRadius, y: top }, bounds)
   parts.push("Z")
   return parts.join(" ")
 }
@@ -226,7 +149,6 @@ function screenMetrics(raw) {
   var screen = source.screen || {}
   var anchor = source.anchor || {}
   var bar = source.bar || {}
-  var pairWidths = source.compactPairWidths || {}
   var peekMeasurement = source.peekMeasurement || {}
   return {
     width: Math.max(0, finite(screen.width, 0)),
@@ -245,10 +167,6 @@ function screenMetrics(raw) {
     gap: Math.max(0, finite(source.gap, 6)),
     slotWidth: Math.max(80, finite(source.slotWidth, 250)),
     compactHeight: Math.max(12, finite(source.compactHeight, 22)),
-    compactPairWidths: {
-      primary: Math.max(0, finite(pairWidths.primary, 0)),
-      secondary: Math.max(0, finite(pairWidths.secondary, 0))
-    },
     peekMeasurement: {
       key: text(peekMeasurement.key),
       width: Math.max(0, finite(peekMeasurement.width, 0)),
@@ -265,38 +183,6 @@ function compactRectangle(metrics, width, minimal) {
   var limitX = Math.max(0, metrics.width - width)
   var limitY = Math.max(0, metrics.height - height)
   return rectangle(clamp(x, 0, limitX), clamp(y, 0, limitY), width, height, minimal ? height / 2 : Math.min(height / 2, 11))
-}
-
-function pairedCompactGeometry(slot, gap, metrics) {
-  var available = Math.max(0, slot.width - gap)
-  var fallbackSecondary = Math.min(68, slot.width * 0.32)
-  var fallbackPrimary = Math.max(0, available - fallbackSecondary)
-  var measured = metrics.compactPairWidths || {}
-  var primaryWidth = finite(measured.primary, 0) > 0 ? measured.primary : fallbackPrimary
-  var secondaryWidth = finite(measured.secondary, 0) > 0 ? measured.secondary : fallbackSecondary
-  var preferredTotal = primaryWidth + secondaryWidth
-  if (preferredTotal > available && preferredTotal > 0) {
-    var half = available / 2
-    if (primaryWidth > half && secondaryWidth <= half) primaryWidth = available - secondaryWidth
-    else if (secondaryWidth > half && primaryWidth <= half) secondaryWidth = available - primaryWidth
-    else {
-      primaryWidth = half
-      secondaryWidth = available - half
-    }
-  }
-  var groupWidth = primaryWidth + gap + secondaryWidth
-  var groupX = slot.x + (slot.width - groupWidth) / 2
-  var radius = Math.min(slot.height / 2, 11)
-  var card = rectangle(groupX, slot.y, primaryWidth, slot.height, radius)
-  var secondary = rectangle(groupX + primaryWidth + gap, slot.y, secondaryWidth, slot.height, radius)
-  var slotRight = slot.x + slot.width
-  if (card.x < slot.x) card.x = slot.x
-  if (secondary.x + secondary.width > slotRight) secondary.width = Math.max(0, slotRight - secondary.x)
-  if (secondary.x < card.x + card.width + gap) card.width = Math.max(0, secondary.x - card.x - gap)
-  return {
-    card: card,
-    secondary: secondary
-  }
 }
 
 function expandedRectangle(metrics, media) {
@@ -327,7 +213,7 @@ function expandedRectangle(metrics, media) {
   )
 }
 
-function tipPerimeter(body, edge, bounds, boundary, shoulderRadius, amount, attached) {
+function tipPerimeter(body, edge, bounds, boundary, shoulderRadius, amount) {
   var horizontal = edge === "top" || edge === "bottom"
   var span = horizontal ? body.width : body.height
   var depth = edge === "top" ? body.y + body.height - boundary
@@ -341,7 +227,6 @@ function tipPerimeter(body, edge, bounds, boundary, shoulderRadius, amount, atta
   if (edge === "left") radius = Math.min(body.topRightRadius, body.bottomRightRadius)
   if (edge === "right") radius = Math.min(body.topLeftRadius, body.bottomLeftRadius)
   radius = Math.max(0, Math.min(radius, depth - shoulderRadius, span / 2))
-  var nearRadius = attached ? 0 : radius * (1 - amount)
   var corner = 0.5522847498307936
   var distalStart = blend(depth - radius, shoulderRadius, amount)
   var distalControl = blend(depth - radius + corner * radius,
@@ -356,32 +241,21 @@ function tipPerimeter(body, edge, bounds, boundary, shoulderRadius, amount, atta
     if (edge === "left") return { x: boundary + v, y: body.y + u }
     return { x: boundary - v, y: body.y + u }
   }
-  var parts = ["M " + svgPoint(point(attached ? 0 : nearRadius, near), bounds)]
-  svgLine(parts, point(span - nearRadius, near), bounds)
-  if (attached) {
-    svgLine(parts, point(span, 0), bounds)
-    svgLine(parts, point(span + shoulderRadius, 0), bounds)
-    svgCubic(parts, point(span + shoulderRadius * (1 - corner), 0),
-      point(span, shoulderRadius * (1 - corner)), point(span, shoulderRadius), bounds)
-  } else {
-    svgCubic(parts, point(span - nearRadius + corner * nearRadius, near),
-      point(span, near + nearRadius * (1 - corner)), point(span, near + nearRadius), bounds)
-  }
+  var parts = ["M " + svgPoint(point(0, near), bounds)]
+  svgLine(parts, point(span, near), bounds)
+  svgLine(parts, point(span, 0), bounds)
+  svgLine(parts, point(span + shoulderRadius, 0), bounds)
+  svgCubic(parts, point(span + shoulderRadius * (1 - corner), 0),
+    point(span, shoulderRadius * (1 - corner)), point(span, shoulderRadius), bounds)
   svgLine(parts, point(span, distalStart), bounds)
   svgCubic(parts, point(span, distalControl), point(distalHandle, depth), point(distalEnd, depth), bounds)
   svgLine(parts, point(span - distalEnd, depth), bounds)
   svgCubic(parts, point(span - distalHandle, depth), point(0, distalControl), point(0, distalStart), bounds)
-  if (attached) {
-    svgLine(parts, point(0, shoulderRadius), bounds)
-    svgCubic(parts, point(0, shoulderRadius * (1 - corner)),
-      point(-shoulderRadius * (1 - corner), 0), point(-shoulderRadius, 0), bounds)
-    svgLine(parts, point(0, 0), bounds)
-    svgLine(parts, point(0, near), bounds)
-  } else {
-    svgLine(parts, point(0, near + nearRadius), bounds)
-    svgCubic(parts, point(0, near + nearRadius * (1 - corner)),
-      point(nearRadius * (1 - corner), near), point(nearRadius, near), bounds)
-  }
+  svgLine(parts, point(0, shoulderRadius), bounds)
+  svgCubic(parts, point(0, shoulderRadius * (1 - corner)),
+    point(-shoulderRadius * (1 - corner), 0), point(-shoulderRadius, 0), bounds)
+  svgLine(parts, point(0, 0), bounds)
+  svgLine(parts, point(0, near), bounds)
   parts.push("Z")
   return parts.join(" ")
 }
@@ -391,7 +265,7 @@ function taperAmount(depth) {
   return 1 - progress * progress * (3 - 2 * progress)
 }
 
-function activityOutline(sampledRect, rawMetrics) {
+function activityOutline(sampledRect, rawMetrics, taperAtEdge) {
   var metrics = screenMetrics(rawMetrics)
   var source = sampledRect || {}
   var body = {
@@ -427,7 +301,7 @@ function activityOutline(sampledRect, rawMetrics) {
   var span = horizontal ? body.width : body.height
   var radius = Math.max(0, Math.min(18, outsideSpace, exposedDepth / 2, span / 2))
   var connected = radius > 0.01
-  var taper = connected ? taperAmount(exposedDepth) : 0
+  var taper = connected && taperAtEdge !== false ? taperAmount(exposedDepth) : 0
   var bodyRadius = Math.min(body.radius, body.width / 2, body.height / 2,
     connected ? exposedDepth - radius : Math.max(body.width, body.height))
   var bodyPiece = outlinePiece(body.x, body.y, body.width, body.height,
@@ -441,44 +315,35 @@ function activityOutline(sampledRect, rawMetrics) {
   if (connected && edge === "top") {
     shoulders.push(shoulder(
       { x: body.x - radius, y: barBoundary, width: radius, height: radius },
-      { x: body.x - radius * 2, y: barBoundary, width: radius * 2, height: radius * 2 },
-      { x: body.x - radius, y: barBoundary }, { x: body.x, y: barBoundary }, { x: body.x, y: barBoundary + radius }, false, radius))
+      { x: body.x - radius * 2, y: barBoundary, width: radius * 2, height: radius * 2 }))
     shoulders.push(shoulder(
       { x: right, y: barBoundary, width: radius, height: radius },
-      { x: right, y: barBoundary, width: radius * 2, height: radius * 2 },
-      { x: right + radius, y: barBoundary }, { x: right, y: barBoundary }, { x: right, y: barBoundary + radius }, true, radius))
+      { x: right, y: barBoundary, width: radius * 2, height: radius * 2 }))
   } else if (connected && edge === "bottom") {
     shoulders.push(shoulder(
       { x: body.x - radius, y: barBoundary - radius, width: radius, height: radius },
-      { x: body.x - radius * 2, y: barBoundary - radius * 2, width: radius * 2, height: radius * 2 },
-      { x: body.x - radius, y: barBoundary }, { x: body.x, y: barBoundary }, { x: body.x, y: barBoundary - radius }, true, radius))
+      { x: body.x - radius * 2, y: barBoundary - radius * 2, width: radius * 2, height: radius * 2 }))
     shoulders.push(shoulder(
       { x: right, y: barBoundary - radius, width: radius, height: radius },
-      { x: right, y: barBoundary - radius * 2, width: radius * 2, height: radius * 2 },
-      { x: right + radius, y: barBoundary }, { x: right, y: barBoundary }, { x: right, y: barBoundary - radius }, false, radius))
+      { x: right, y: barBoundary - radius * 2, width: radius * 2, height: radius * 2 }))
   } else if (connected && edge === "left") {
     shoulders.push(shoulder(
       { x: barBoundary, y: body.y - radius, width: radius, height: radius },
-      { x: barBoundary, y: body.y - radius * 2, width: radius * 2, height: radius * 2 },
-      { x: barBoundary, y: body.y - radius }, { x: barBoundary, y: body.y }, { x: barBoundary + radius, y: body.y }, true, radius))
+      { x: barBoundary, y: body.y - radius * 2, width: radius * 2, height: radius * 2 }))
     shoulders.push(shoulder(
       { x: barBoundary, y: bottom, width: radius, height: radius },
-      { x: barBoundary, y: bottom, width: radius * 2, height: radius * 2 },
-      { x: barBoundary, y: bottom + radius }, { x: barBoundary, y: bottom }, { x: barBoundary + radius, y: bottom }, false, radius))
+      { x: barBoundary, y: bottom, width: radius * 2, height: radius * 2 }))
   } else if (connected && edge === "right") {
     shoulders.push(shoulder(
       { x: barBoundary - radius, y: body.y - radius, width: radius, height: radius },
-      { x: barBoundary - radius * 2, y: body.y - radius * 2, width: radius * 2, height: radius * 2 },
-      { x: barBoundary, y: body.y - radius }, { x: barBoundary, y: body.y }, { x: barBoundary - radius, y: body.y }, false, radius))
+      { x: barBoundary - radius * 2, y: body.y - radius * 2, width: radius * 2, height: radius * 2 }))
     shoulders.push(shoulder(
       { x: barBoundary - radius, y: bottom, width: radius, height: radius },
-      { x: barBoundary - radius * 2, y: bottom, width: radius * 2, height: radius * 2 },
-      { x: barBoundary, y: bottom + radius }, { x: barBoundary, y: bottom }, { x: barBoundary - radius, y: bottom }, true, radius))
+      { x: barBoundary - radius * 2, y: bottom, width: radius * 2, height: radius * 2 }))
   }
   while (shoulders.length < 2) shoulders.push(shoulder(
     { x: body.x, y: body.y, width: 0, height: 0 },
-    { x: body.x, y: body.y, width: 0, height: 0 },
-    { x: body.x, y: body.y }, { x: body.x, y: body.y }, { x: body.x, y: body.y }, false, 0))
+    { x: body.x, y: body.y, width: 0, height: 0 }))
   var minimumX = body.x
   var minimumY = body.y
   var maximumX = right
@@ -508,12 +373,60 @@ function activityOutline(sampledRect, rawMetrics) {
     shoulderRadius: radius,
     taper: taper,
     contentSafe: taper === 0,
-    perimeter: connected ? tipPerimeter(bodyPiece, edge, bounds, barBoundary, radius, taper, true)
-      : outlinePerimeter(bodyPiece, shoulders, edge, bounds, false)
+    perimeter: connected ? tipPerimeter(bodyPiece, edge, bounds, barBoundary, radius, taper)
+      : outlinePerimeter(bodyPiece, bounds)
   }
 }
 
-function plainActivityOutline(sampledRect, taperEdge, taper) {
+// A capsule within the strip has four continuous corners. As soon as its
+// lower edge clears the bar, the two inner corners become joined shoulders.
+function barIslandOutline(rect, metrics) {
+  var outline = activityOutline(rect, metrics, false)
+  return outline.shoulderRadius > 0 ? outline : plainActivityOutline(rect)
+}
+
+// islandcn continuous corners, adapted from lib/island/path.ts (MIT, 2026 Leo).
+function islandCornerEdge(radius, room) {
+  var smoothing = clamp(room / radius - 1, 0, 0.72)
+  var angle = Math.PI * smoothing / 4
+  var extent = (1 + smoothing) * radius
+  var along = radius * (1 - Math.sin(angle))
+  var across = radius * (1 - Math.cos(angle))
+  var tangent = radius * Math.tan(angle / 2) * Math.cos(angle)
+  var handle = Math.max(0, (extent - tangent - along) / 3)
+  return { extent: extent, handle: handle, along: along, across: across }
+}
+
+function islandPerimeter(width, height, radius) {
+  if (width <= 0 || height <= 0) return ""
+  if (radius < 0.001) return ["M0 0 H", width, "V", height, "H0 Z"].join(" ")
+  var horizontal = islandCornerEdge(radius, width / 2)
+  var vertical = islandCornerEdge(radius, height / 2)
+  var path = ["M", horizontal.extent, 0]
+  function corner(x, y, ux, uy, vx, vy, incoming, outgoing) {
+    function point(u, v) { path.push(x + ux * u + vx * v, y + uy * u + vy * v) }
+    path.push("L")
+    point(incoming.extent, 0)
+    path.push("C")
+    point(incoming.extent - 2 * incoming.handle, 0)
+    point(incoming.extent - 3 * incoming.handle, 0)
+    point(incoming.along, incoming.across)
+    path.push("A", radius, radius, 0, 0, 1)
+    point(outgoing.across, outgoing.along)
+    path.push("C")
+    point(0, outgoing.extent - 3 * outgoing.handle)
+    point(0, outgoing.extent - 2 * outgoing.handle)
+    point(0, outgoing.extent)
+  }
+  corner(width, 0, -1, 0, 0, 1, horizontal, vertical)
+  corner(width, height, 0, -1, -1, 0, vertical, horizontal)
+  corner(0, height, 1, 0, 0, -1, horizontal, vertical)
+  corner(0, 0, 0, 1, 1, 0, vertical, horizontal)
+  path.push("Z")
+  return path.join(" ")
+}
+
+function plainActivityOutline(sampledRect) {
   var source = sampledRect || {}
   var body = outlinePiece(
     finite(source.x, 0), finite(source.y, 0),
@@ -524,51 +437,26 @@ function plainActivityOutline(sampledRect, taperEdge, taper) {
     Math.max(0, Math.min(finite(source.radius, 0), finite(source.width, 0) / 2, finite(source.height, 0) / 2)))
   var emptyShoulder = shoulder(
     { x: body.x, y: body.y, width: 0, height: 0 },
-    { x: body.x, y: body.y, width: 0, height: 0 },
-    { x: body.x, y: body.y }, { x: body.x, y: body.y }, { x: body.x, y: body.y }, false, 0)
+    { x: body.x, y: body.y, width: 0, height: 0 })
   var bounds = { x: body.x, y: body.y, width: body.width, height: body.height }
-  var edge = taperEdge || "top"
-  var amount = clamp(finite(taper, 0), 0, 1)
-  var boundary = edge === "top" ? body.y : edge === "bottom" ? body.y + body.height
-    : edge === "left" ? body.x : body.x + body.width
-  if (taperEdge && amount > 0) {
-    var horizontal = edge === "top" || edge === "bottom"
-    var span = horizontal ? body.width : body.height
-    var crossScale = blend(1, Math.min(1, 18 / Math.max(1, span)), amount)
-    if (horizontal) {
-      bounds.width *= crossScale
-      bounds.x += (body.width - bounds.width) / 2
-    } else {
-      bounds.height *= crossScale
-      bounds.y += (body.height - bounds.height) / 2
-    }
-  }
   return {
     bounds: bounds,
     body: body,
     shoulders: [emptyShoulder, emptyShoulder],
     shoulderRadius: 0,
-    taper: amount,
-    contentSafe: amount === 0,
-    perimeter: taperEdge ? tipPerimeter(body, edge, bounds, boundary, 0, amount, false)
-      : outlinePerimeter(body, [emptyShoulder, emptyShoulder], "top", bounds, false)
+    taper: 0,
+    contentSafe: true,
+    perimeter: islandPerimeter(body.width, body.height, body.topLeftRadius)
   }
 }
 
-function attachedPeekOutline(sampledPeekRect, rawMetrics) {
-  var edge = screenMetrics(rawMetrics).bar.position
-  var rect = sampledPeekRect || {}
-  var depth = edge === "top" || edge === "bottom" ? finite(rect.height, 0) : finite(rect.width, 0)
-  return plainActivityOutline(rect, edge, taperAmount(depth))
-}
-
-function visibleBodyRects(bodies, ignoreRetiring) {
+function visibleBodyRects(bodies) {
   var source = Array.isArray(bodies) ? bodies : []
   var result = []
   for (var index = 0; index < source.length; index++) {
     var body = source[index]
     var rect = body && body.rect ? body.rect : null
-    if (!body || body.visible !== true || (ignoreRetiring && body.role === "retiring") || !rect) continue
+    if (!body || body.visible !== true || body.role === "retiring" || !rect) continue
     var width = Math.max(0, finite(rect.width, 0))
     var height = Math.max(0, finite(rect.height, 0))
     if (width <= 0 || height <= 0) continue
@@ -578,31 +466,11 @@ function visibleBodyRects(bodies, ignoreRetiring) {
         x: finite(rect.x, 0),
         y: finite(rect.y, 0),
         width: width,
-        height: height,
-        radius: Math.max(0, finite(rect.radius, 0))
+        height: height
       }
     })
   }
   return result
-}
-
-function combinedActivityOutline(bodies, rawMetrics) {
-  var rects = visibleBodyRects(bodies, false)
-  if (rects.length === 0) return activityOutline({ x: 0, y: 0, width: 0, height: 0, radius: 0 }, rawMetrics)
-  var left = rects[0].rect.x
-  var top = rects[0].rect.y
-  var right = left + rects[0].rect.width
-  var bottom = top + rects[0].rect.height
-  var radius = rects[0].rect.radius
-  for (var index = 1; index < rects.length; index++) {
-    var rect = rects[index].rect
-    left = Math.min(left, rect.x)
-    top = Math.min(top, rect.y)
-    right = Math.max(right, rect.x + rect.width)
-    bottom = Math.max(bottom, rect.y + rect.height)
-    radius = Math.max(radius, rect.radius)
-  }
-  return activityOutline({ x: left, y: top, width: right - left, height: bottom - top, radius: radius }, rawMetrics)
 }
 
 function rectDistanceSquared(rect, x, y) {
@@ -615,7 +483,7 @@ function rectDistanceSquared(rect, x, y) {
 
 function activityKeyAtPoint(bodies, x, y) {
   if (!isFinite(x) || !isFinite(y)) return null
-  var rects = visibleBodyRects(bodies, true)
+  var rects = visibleBodyRects(bodies)
   var nearest = null
   var distance = Infinity
   for (var index = 0; index < rects.length; index++) {
@@ -631,7 +499,7 @@ function activityKeyAtPoint(bodies, x, y) {
   return nearest
 }
 
-function geometryFor(phase, hasSecondary, metrics, expandedMedia, pairedCompact) {
+function geometryFor(phase, hasSecondary, metrics, expandedMedia) {
   var side = metrics.bar.position === "left" || metrics.bar.position === "right"
   if (side) return verticalGeometryFor(phase, hasSecondary, metrics, expandedMedia)
   var slot = compactRectangle(metrics, metrics.slotWidth, false)
@@ -643,16 +511,10 @@ function geometryFor(phase, hasSecondary, metrics, expandedMedia, pairedCompact)
     primary = expandedRectangle(metrics, expandedMedia)
   } else if (hasSecondary) {
     var gap = Math.min(metrics.gap, 8, slot.width / 6)
-    if (pairedCompact === true) {
-      var pair = pairedCompactGeometry(slot, gap, metrics)
-      primary = pair.card
-      secondary = pair.secondary
-    } else {
-      var bubble = Math.min(slot.height, 22, slot.width / 3)
-      var primaryWidth = slot.width - bubble - gap
-      primary = rectangle(slot.x, slot.y, primaryWidth, slot.height, Math.min(slot.height / 2, 11))
-      secondary = rectangle(slot.x + primaryWidth + gap, slot.y, bubble, slot.height, bubble / 2)
-    }
+    var bubble = Math.min(slot.height, 22, slot.width / 3)
+    var primaryWidth = slot.width - bubble - gap
+    primary = rectangle(slot.x, slot.y, primaryWidth, slot.height, Math.min(slot.height / 2, 11))
+    secondary = rectangle(slot.x + primaryWidth + gap, slot.y, bubble, slot.height, bubble / 2)
   }
   return { slot: slot, card: primary, secondary: secondary }
 }
@@ -788,6 +650,7 @@ function projectPeekFrame(frame, active, screenName, rawMetrics) {
   if (!closed || closed.width < 1 || closed.height < 1) return base
   return {
     phase: "peek",
+    splitGeometry: null,
     alerting: false,
     primary: content,
     secondary: null,
@@ -801,7 +664,6 @@ function projectPeekFrame(frame, active, screenName, rawMetrics) {
     preflight: base.preflight || null,
     detailHeightBudget: finite(base.detailHeightBudget, 0),
     layoutReady: base.layoutReady === true,
-    chooserOpen: base.chooserOpen === true,
     peek: { content: content, rect: closed, placement: "closed", size: size, candidate: active.candidate }
   }
 }
@@ -859,6 +721,7 @@ function frameFor(state, screenName, rawMetrics, selection) {
     ? compactSourceGeometry.secondary ? compactSourceGeometry.slot : titleCompactRect : null
   return {
     phase: phase,
+    splitGeometry: null,
     alerting: phase === "alerting",
     primary: primary,
     secondary: hasSecondary ? secondary : null,
@@ -883,8 +746,7 @@ function mediaTitleIntent(content, role, compactRect, expandedRect, barPosition)
   var media = content && content.media ? content.media : null
   var title = media && typeof media.title === "string" ? media.title : ""
   var horizontal = barPosition === "top" || barPosition === "bottom"
-  var labelledSecondary = role !== "secondary" || !!(content && typeof content.compactText === "string" && content.compactText !== "")
-  var present = !!media && title !== "" && horizontal && role !== "minimal" && labelledSecondary
+  var present = !!media && title !== "" && horizontal && role !== "minimal" && role !== "secondary"
   return {
     owned: !!media,
     identity: present ? { key: content.key, trackToken: String(media.trackToken || "") } : null,
@@ -917,24 +779,6 @@ function titleSample(sampledRect, title) {
   return { progress: progress, x: left, visualWidth: Math.max(0, right - left) }
 }
 
-function titleVelocity(rectVelocity, title) {
-  var compact = title && title.compact ? title.compact : null
-  var expanded = title && title.expanded ? title.expanded : null
-  if (!compact || !expanded || !compact.body || !expanded.body) return 0
-  var velocity = rectVelocity || {}
-  var fields = ["x", "y", "width", "height"]
-  var numerator = 0
-  var denominator = 0
-  for (var index = 0; index < fields.length; index++) {
-    var name = fields[index]
-    var start = finite(compact.body[name], 0)
-    var delta = finite(expanded.body[name], start) - start
-    numerator += finite(velocity[name], 0) * delta
-    denominator += delta * delta
-  }
-  return denominator > 0.000001 ? numerator / denominator : 0
-}
-
 function motionBody(content, rect, role, sharedTitle, sourceRect, sourceCapsuleRect) {
   if (!content || !rect) return null
   return {
@@ -959,6 +803,7 @@ function motionIntentFor(frame, rawMetrics) {
     var closedContent = source.peek.content
     var closedRect = source.peek.rect
     return {
+      splitGeometry: null,
       edge: metrics.bar.position,
       bounds: { width: metrics.width, height: metrics.height },
       alerting: false,
@@ -971,7 +816,8 @@ function motionIntentFor(frame, rawMetrics) {
   }
   var expanded = source.phase === "expanded"
   var primary = expanded ? source.selected : source.primary
-  var primaryRole = expanded ? "expanded" : source.phase === "minimal" || source.splitMinimal ? "minimal" : "primary"
+  var sidePair = source.splitGeometry && source.splitGeometry.vertical && source.secondary
+  var primaryRole = expanded ? "expanded" : source.phase === "minimal" || sidePair ? "minimal" : "primary"
   var compactGeometry = geometryFor("compact", false, metrics, false)
   var expandedGeometry = geometryFor("expanded", false, metrics, true)
   if (source.titleExpandedRect) expandedGeometry.card = source.titleExpandedRect
@@ -983,11 +829,15 @@ function motionIntentFor(frame, rawMetrics) {
   var compactPair = !expanded && !!source.secondary && !!secondaryRect
   var capsuleRect = expanded ? primaryRect : compactPair && source.geometry && source.geometry.slot
     ? source.geometry.slot : primaryRect
+  if (source.splitGeometry && compactPair && source.splitGeometry.vertical) {
+    capsuleRect = Object.assign({}, primaryRect, { y: (primaryRect.y + secondaryRect.y) / 2 })
+  }
   return {
     edge: metrics.bar.position,
     bounds: { width: metrics.width, height: metrics.height },
     alerting: source.alerting === true,
-    capsule: capsuleRect ? {
+    splitGeometry: source.splitGeometry || null,
+    capsule: primary && capsuleRect ? {
       mode: expanded ? "expanded" : compactPair ? "compactPair" : primaryRole,
       profile: expanded ? "expansion" : "compact",
       rect: capsuleRect
@@ -1009,4 +859,4 @@ function motionIntentFor(frame, rawMetrics) {
   }
 }
 
-if (typeof module !== "undefined") module.exports = { frameFor: frameFor, screenMetrics: screenMetrics, geometryFor: geometryFor, activityOutline: activityOutline, plainActivityOutline: plainActivityOutline, attachedPeekOutline: attachedPeekOutline, combinedActivityOutline: combinedActivityOutline, activityKeyAtPoint: activityKeyAtPoint, visibleOnScreen: visibleOnScreen, peekContent: peekContent, projectPeekFrame: projectPeekFrame, motionIntentFor: motionIntentFor, mediaTitleIntent: mediaTitleIntent, titleSample: titleSample, titleVelocity: titleVelocity }
+if (typeof module !== "undefined") module.exports = { frameFor: frameFor, screenMetrics: screenMetrics, geometryFor: geometryFor, activityOutline: activityOutline, plainActivityOutline: plainActivityOutline, barIslandOutline: barIslandOutline, activityKeyAtPoint: activityKeyAtPoint, visibleOnScreen: visibleOnScreen, peekContent: peekContent, projectPeekFrame: projectPeekFrame, motionIntentFor: motionIntentFor, mediaTitleIntent: mediaTitleIntent, titleSample: titleSample }

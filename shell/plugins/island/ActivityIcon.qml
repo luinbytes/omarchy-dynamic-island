@@ -1,13 +1,13 @@
 import QtQuick
 import QtQuick.Shapes
-import qs.Commons
+import qs.Commons as Commons
 
 Item {
   id: root
 
   property string name: ""
   property real size: 14
-  property color color: Color.bar.text
+  property color color: Commons.Color.bar.text
   property string fallbackText: ""
 
   implicitWidth: Math.max(1, root.size)
@@ -38,6 +38,7 @@ Item {
   }
 
   readonly property var paths: ({
+    download: "M 7 1 V 9 M 3 6 L 7 10 L 11 6 M 2 12 V 13 H 12 V 12",
     alert: "M 7 1 L 13 12 H 1 Z M 7 5 V 8 M 7 10 V 10.5",
     bell: "M 7 1 C 4.8 1 3.4 2.8 3.4 5.3 L 3.4 8.2 L 1.8 10.2 L 12.2 10.2 L 10.6 8.2 L 10.6 5.3 C 10.6 2.8 9.2 1 7 1 Z M 5.5 11.4 C 5.8 12.7 6.4 13.3 7 13.3 C 7.6 13.3 8.2 12.7 8.5 11.4 Z",
     cpu: "M 3 3 H 11 V 11 H 3 Z M 5 5 H 9 V 9 H 5 Z M 5 0 V 3 M 9 0 V 3 M 5 11 V 14 M 9 11 V 14 M 0 5 H 3 M 0 9 H 3 M 11 5 H 14 M 11 9 H 14",
@@ -78,7 +79,7 @@ Item {
       ? root.fallbackText : "◦")
     textFormat: Text.PlainText
     color: root.color
-    font.family: Style.font.family
+    font.family: Commons.Style.font.family
     font.pixelSize: Math.max(1, root.size)
     horizontalAlignment: Text.AlignHCenter
     verticalAlignment: Text.AlignVCenter

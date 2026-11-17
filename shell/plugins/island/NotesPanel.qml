@@ -1,7 +1,7 @@
 pragma ComponentBehavior: Bound
 
 import QtQuick
-import qs.Commons
+import qs.Commons as Commons
 import qs.Ui as Ui
 import "NotePages.js" as NotePages
 
@@ -9,7 +9,7 @@ Item {
   id: root
 
   required property var repository
-  property real headerRightInset: 32
+  property real headerRightInset: 0
   readonly property var snapshot: repository ? repository.snapshot : ({ notes: [], selectedNote: null,
     selectedId: "", query: "", panelMode: "list", listPage: 0,
     editorSession: ({ page: 0, cursor: 0, anchor: 0 }), saveState: "loading", error: "", ready: false })
@@ -46,7 +46,7 @@ Item {
     width: 24
     height: 24
     radius: 12
-    color: Qt.rgba(Color.bar.text.r, Color.bar.text.g, Color.bar.text.b, activeFocus ? 0.14 : 0.07)
+    color: Qt.rgba(Commons.Color.bar.text.r, Commons.Color.bar.text.g, Commons.Color.bar.text.b, activeFocus ? 0.14 : 0.07)
     opacity: enabled ? 1 : 0.35
     activeFocusOnTab: enabled
     Accessible.role: Accessible.Button
@@ -60,8 +60,8 @@ Item {
       anchors.centerIn: parent
       text: glyphButton.glyph
       textFormat: Text.PlainText
-      color: Color.bar.text
-      font.family: Style.font.family
+      color: Commons.Color.bar.text
+      font.family: Commons.Style.font.family
       font.pixelSize: 15
     }
     MouseArea {
@@ -194,13 +194,13 @@ Item {
 
   FontMetrics {
     id: editorFontMetrics
-    font.family: Style.font.family
+    font.family: Commons.Style.font.family
     font.pixelSize: 12
   }
 
   FontMetrics {
     id: listStatusMetrics
-    font.family: Style.font.family
+    font.family: Commons.Style.font.family
     font.pixelSize: 9
   }
 
@@ -220,17 +220,17 @@ Item {
         anchors.rightMargin: 8
         height: 30
         radius: 10
-        color: Qt.rgba(Color.bar.text.r, Color.bar.text.g, Color.bar.text.b, 0.08)
+        color: Qt.rgba(Commons.Color.bar.text.r, Commons.Color.bar.text.g, Commons.Color.bar.text.b, 0.08)
         border.width: searchInput.activeFocus ? 1 : 0
-        border.color: Color.accent
+        border.color: Commons.Color.accent
         TextInput {
           id: searchInput
           anchors.fill: parent
           anchors.leftMargin: 10
           anchors.rightMargin: 10
           verticalAlignment: TextInput.AlignVCenter
-          color: Color.bar.text
-          font.family: Style.font.family
+          color: Commons.Color.bar.text
+          font.family: Commons.Style.font.family
           font.pixelSize: 11
           selectByMouse: true
           clip: true
@@ -241,8 +241,8 @@ Item {
           verticalAlignment: Text.AlignVCenter
           text: "Search notes"
           textFormat: Text.PlainText
-          color: Color.muted
-          font.family: Style.font.family
+          color: Commons.Color.muted
+          font.family: Commons.Style.font.family
           font.pixelSize: 11
           visible: searchInput.text === ""
           enabled: false
@@ -254,7 +254,7 @@ Item {
         anchors.rightMargin: root.headerRightInset
         height: 30
         text: "New"
-        foreground: Color.bar.text
+        foreground: Commons.Color.bar.text
         bordered: true
         focusable: true
         enabled: root.snapshot.ready
@@ -267,8 +267,8 @@ Item {
       height: visible ? Math.ceil(listStatusMetrics.height) : 0
       text: root.saveLabel()
       textFormat: Text.PlainText
-      color: root.snapshot.error ? Color.accent : Color.muted
-      font.family: Style.font.family
+      color: root.snapshot.error ? Commons.Color.accent : Commons.Color.muted
+      font.family: Commons.Style.font.family
       font.pixelSize: 9
       elide: Text.ElideRight
       visible: text !== "Saved"
@@ -282,7 +282,7 @@ Item {
         width: listColumn.width
         height: 42
         radius: 11
-        color: Qt.rgba(Color.bar.text.r, Color.bar.text.g, Color.bar.text.b, 0.055)
+        color: Qt.rgba(Commons.Color.bar.text.r, Commons.Color.bar.text.g, Commons.Color.bar.text.b, 0.055)
         opacity: modelData.trashedAt === null ? 1 : 0.58
         activeFocusOnTab: true
         function activate() { root.openNote(modelData.id) }
@@ -302,8 +302,8 @@ Item {
           anchors.topMargin: 6
           text: noteRow.modelData.title
           textFormat: Text.PlainText
-          color: Color.bar.text
-          font.family: Style.font.family
+          color: Commons.Color.bar.text
+          font.family: Commons.Style.font.family
           font.pixelSize: 11
           font.weight: Font.DemiBold
           elide: Text.ElideRight
@@ -315,8 +315,8 @@ Item {
           anchors.bottomMargin: 5
           text: noteRow.modelData.trashedAt === null ? "Note" : "In trash"
           textFormat: Text.PlainText
-          color: Color.muted
-          font.family: Style.font.family
+          color: Commons.Color.muted
+          font.family: Commons.Style.font.family
           font.pixelSize: 9
         }
         MouseArea { anchors.fill: parent; cursorShape: Qt.PointingHandCursor; onClicked: noteRow.activate() }
@@ -330,8 +330,8 @@ Item {
       horizontalAlignment: Text.AlignHCenter
       text: root.snapshot.ready ? ((root.snapshot.query || "") ? "No matching notes" : "No notes yet") : "Notes are unavailable"
       textFormat: Text.PlainText
-      color: Color.muted
-      font.family: Style.font.family
+      color: Commons.Color.muted
+      font.family: Commons.Style.font.family
       font.pixelSize: 11
       visible: root.listNotes.length === 0
     }
@@ -346,8 +346,8 @@ Item {
         anchors.verticalCenter: parent.verticalCenter
         text: (root.listPage + 1) + " / " + root.listPageCount
         textFormat: Text.PlainText
-        color: Color.muted
-        font.family: Style.font.family
+        color: Commons.Color.muted
+        font.family: Commons.Style.font.family
         font.pixelSize: 9
       }
       PageGlyph { glyph: "›"; enabled: root.listPage + 1 < root.listPageCount; onInvoked: root.repository.setListPage(root.listPage + 1) }
@@ -356,7 +356,7 @@ Item {
     Ui.Button {
       anchors.horizontalCenter: parent.horizontalCenter
       text: "Retry save"
-      foreground: Color.bar.text
+      foreground: Commons.Color.bar.text
       fontSize: 9
       focusable: true
       visible: root.snapshot.saveState === "failed"
@@ -377,7 +377,7 @@ Item {
         id: backButton
         anchors.left: parent.left
         text: "Back"
-        foreground: Color.bar.text
+        foreground: Commons.Color.bar.text
         fontSize: 10
         focusable: true
         onClicked: root.repository.setPanelMode("list")
@@ -390,8 +390,8 @@ Item {
         anchors.verticalCenter: parent.verticalCenter
         text: root.selectedNote ? root.selectedNote.title : ""
         textFormat: Text.PlainText
-        color: Color.bar.text
-        font.family: Style.font.family
+        color: Commons.Color.bar.text
+        font.family: Commons.Style.font.family
         font.pixelSize: 13
         font.weight: Font.DemiBold
         elide: Text.ElideRight
@@ -401,7 +401,7 @@ Item {
         anchors.right: parent.right
         anchors.rightMargin: root.headerRightInset
         text: root.selectedNote && root.selectedNote.trashedAt === null ? "Trash" : "Restore"
-        foreground: Color.bar.text
+        foreground: Commons.Color.bar.text
         fontSize: 9
         focusable: true
         onClicked: {
@@ -416,9 +416,9 @@ Item {
       width: parent.width
       height: Math.max(68, editor.contentHeight + 20)
       radius: 12
-      color: Qt.rgba(Color.bar.text.r, Color.bar.text.g, Color.bar.text.b, 0.055)
+      color: Qt.rgba(Commons.Color.bar.text.r, Commons.Color.bar.text.g, Commons.Color.bar.text.b, 0.055)
       border.width: editor.activeFocus ? 1 : 0
-      border.color: Color.accent
+      border.color: Commons.Color.accent
       TextEdit {
         id: editor
         anchors.left: parent.left
@@ -430,8 +430,8 @@ Item {
         selectByMouse: true
         wrapMode: TextEdit.Wrap
         textFormat: TextEdit.PlainText
-        color: readOnly ? Color.muted : Color.bar.text
-        font.family: Style.font.family
+        color: readOnly ? Commons.Color.muted : Commons.Color.bar.text
+        font.family: Commons.Style.font.family
         font.pixelSize: 12
         onTextChanged: root.commitEditor()
         onCursorPositionChanged: root.rememberEditorPosition()
@@ -443,8 +443,8 @@ Item {
         anchors.fill: editor
         text: root.selectedNote && root.selectedNote.trashedAt !== null ? "This note is in trash. Restore it to edit." : "Write a note"
         textFormat: Text.PlainText
-        color: Color.muted
-        font.family: Style.font.family
+        color: Commons.Color.muted
+        font.family: Commons.Style.font.family
         font.pixelSize: 12
         visible: editor.text === "" || (root.selectedNote && root.selectedNote.trashedAt !== null)
         enabled: false
@@ -461,8 +461,8 @@ Item {
         anchors.verticalCenter: parent.verticalCenter
         text: (root.pageInfo.index + 1) + " / " + root.pageInfo.count
         textFormat: Text.PlainText
-        color: Color.muted
-        font.family: Style.font.family
+        color: Commons.Color.muted
+        font.family: Commons.Style.font.family
         font.pixelSize: 9
       }
       PageGlyph { glyph: "›"; enabled: root.pageInfo.index + 1 < root.pageInfo.count; onInvoked: root.changeEditorPage(1) }
@@ -475,8 +475,8 @@ Item {
         width: Math.max(0, parent.width - retryButton.width - parent.spacing)
         text: root.saveLabel()
         textFormat: Text.PlainText
-        color: root.snapshot.error ? Color.accent : Color.muted
-        font.family: Style.font.family
+        color: root.snapshot.error ? Commons.Color.accent : Commons.Color.muted
+        font.family: Commons.Style.font.family
         font.pixelSize: 9
         elide: Text.ElideRight
       }
@@ -484,7 +484,7 @@ Item {
         id: retryButton
         width: visible ? implicitWidth : 0
         text: "Retry save"
-        foreground: Color.bar.text
+        foreground: Commons.Color.bar.text
         fontSize: 9
         focusable: true
         visible: root.snapshot.saveState === "failed"

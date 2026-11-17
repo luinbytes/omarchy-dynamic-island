@@ -1,8 +1,171 @@
+// Compact split/unsplit port from islandcn, copyright (c) 2026 Leo.
+// See islandcn-LICENSE. Coordinates are logical pixels in the desktop bar slot.
+var splitTiming = {
+  split: { response: 0.505, damping: 0.815, turn: 0.215 },
+  merge: { response: 0.487, damping: 0.794, turn: 0.203 },
+  pinch: { response: 0.376, damping: 0.811, delay: 0.345 },
+  closeGap: { response: 0.25, damping: 1 },
+  slide: { response: 0.42, damping: 1 },
+  absorb: 0.205,
+  settle: 1.5
+}
+var splitGeometry = { width: 250, height: 22, gap: 6, neckReach: 5, spread: 0.3, handle: 2.4 }
+
+
+// Relative to the trailing edge of a single compact pill. This lets a moving
+// or resized bar keep its current screen anchor throughout the transition.
+function splitFrame(seconds, splitting, height, gap, start) {
+  var h = height, spread = h + gap
+  if (seconds >= splitTiming.settle) {
+    return { primary: splitting ? -spread : 0, left: splitting ? -h : -spread - h,
+      right: 0, vPrimary: 0, vLeft: 0, vRight: 0, bubble: splitting, ink: splitting ? 1 : 0 }
+  }
+  var idle = -spread - h
+  var edges = splitting ? splitTiming.split : splitTiming.merge
+  var initial = start || (splitting
+    ? { primary: 0, left: idle, right: 0, ink: 0 }
+    : { primary: -spread, left: -h, right: 0, ink: 1 })
+  if (splitting && start && !start.bubble) {
+    // The old bubble was absorbed. Start the new lobe inside the visible cap.
+    initial = Object.assign({}, start, { left: Math.min(idle, start.primary - h),
+      right: start.primary, vLeft: 0, vRight: start.vPrimary })
+  }
+  function spring(from, velocity, to, profile, time) {
+    return sampleSpring(from, velocity || 0, to, 2 * Math.PI / profile.response, profile.damping, Math.max(0, time))
+  }
+  function edge(from, velocity, to) {
+    var first = spring(from, velocity, idle, edges, Math.min(seconds, edges.turn))
+    return seconds <= edges.turn ? first
+      : spring(first.value, first.velocity, to, edges, seconds - edges.turn)
+  }
+  var primary = edge(initial.primary, initial.vPrimary, splitting ? -spread : 0)
+  var rejoining = splitting && start && start.bubble
+  var right, left, ink
+  if (rejoining) {
+    right = spring(initial.right, initial.vRight, 0, edges, seconds)
+    left = spring(initial.left, initial.vLeft, -h, edges, seconds)
+    ink = spring(initial.ink, 0, 1, edges, seconds).value
+  } else if (splitting) {
+    right = edge(initial.right, initial.vRight, 0)
+    left = spring(initial.left, initial.vLeft, -h, splitTiming.pinch, seconds - splitTiming.pinch.delay)
+    ink = spread > 0 ? Math.max(initial.ink, clamp((left.value - idle) / spread, 0, 1)) : 0
+  } else {
+    right = spring(initial.right, initial.vRight, idle, splitTiming.slide, seconds)
+    left = spring(initial.left, initial.vLeft, idle - h, splitTiming.closeGap, seconds)
+    ink = initial.ink * Math.max(0, 1 - seconds / splitTiming.absorb)
+  }
+  return { primary: primary.value, left: left.value, right: right.value,
+    vPrimary: primary.velocity, vLeft: left.velocity, vRight: right.velocity,
+    bubble: splitting || seconds < splitTiming.absorb, ink: clamp(ink, 0, 1) }
+}
+
+function updateSplit(state, source, reducedMotion) {
+  var old = state.split
+  var dims = source.splitGeometry
+  // Keep the departing lobe attached to the compact edge as detail opens.
+  var vertical = source.edge === "left" || source.edge === "right"
+  if (!dims && old && old.vertical === vertical && source.primary && source.primary.expanded) dims = old
+  if (!dims) {
+    state.split = null
+    return
+  }
+  var splitting = !!source.secondary
+  if (!old && !splitting) return
+  if (old && !splitting && old.vertical === !!dims.vertical) dims = old
+  if (!old || old.splitting !== splitting) {
+    var current = old ? splitFrame(old.time, old.splitting, old.height, old.gap, old.start) : null
+    state.split = { splitting: splitting, time: 0, height: dims.height, gap: dims.gap, start: current }
+  }
+  state.split.vertical = !!dims.vertical
+  state.split.height = dims.height
+  state.split.depth = dims.depth || dims.height
+  state.split.gap = dims.gap
+  if (reducedMotion) {
+    if (splitting) state.split.time = splitTiming.settle
+    else state.split = null
+  }
+}
+
+// For two horizontal caps of equal radius, the bottom half mirrors the top.
+function neckPath(primary, left, height) {
+  var r = height / 2
+  var distance = left + r - (primary - r)
+  var gap = distance - 2 * r
+  if (distance <= 0 || gap >= splitGeometry.neckReach) return ""
+  var spread = splitGeometry.spread * Math.pow(1 - Math.max(0, gap) / splitGeometry.neckReach, 1.5)
+  var overlap = Math.acos(Math.min(1, distance / (2 * r)))
+  var angle = overlap + (Math.PI / 2 - overlap) * spread
+  var x1 = primary - r + r * Math.cos(angle)
+  var x2 = left + r - r * Math.cos(angle)
+  var dy = r * Math.sin(angle)
+  var handle = r * Math.min(spread * splitGeometry.handle, Math.abs(x2 - x1) / (2 * r)) * Math.min(1, distance / r)
+  var dx = handle * Math.sin(angle), cy = handle * Math.cos(angle)
+  var top = r - dy, bottom = r + dy
+  return ["M", x1, top, "C", x1 + dx, top + cy, x2 - dx, top + cy, x2, top,
+    "L", x2, bottom, "C", x2 - dx, bottom - cy, x1 + dx, bottom - cy, x1, bottom, "Z"].join(" ")
+}
+
 var PROFILES = {
-  expansion: { omega: Math.PI * 2 / 0.32, zeta: 0.88 },
-  collapse: { omega: Math.PI * 2 / 0.32, zeta: 0.88 },
+  expansion: { omega: Math.PI * 2 / 0.387, zeta: 0.792 },
+  collapse: { omega: Math.PI * 2 / 0.479, zeta: 0.894 },
   compact: { omega: 18, zeta: 1 },
   content: { omega: 10, zeta: 1 }
+}
+
+// Content handoff between the compact and expanded renderers, from islandcn's
+// contentTiming. The leaving content goes first and the arriving content waits
+// for the shape to make room, so the two never read as one overlapping layer.
+// Opening uses pressExpand: on desktop a click starts the transition at once.
+// Closing keeps collapse's exit, but islandcn's 0.36 s enter waits for a shape
+// that turns through idle. This capsule heads straight for the bar and is
+// within a few pixels of compact by 0.3 s, so the compact text starts at 0.2 s
+// and lands with the pill instead of leaving it empty for a fifth of a second.
+var HANDOFF = {
+  open: {
+    enter: { delay: 0.056, response: 0.36, scale: 0.9 },
+    exit: { delay: 0.026, response: 0.28 }
+  },
+  close: {
+    enter: { delay: 0.2, response: 0.4, scale: 0.9 },
+    exit: { delay: 0.017, response: 0.22 }
+  }
+}
+
+// A reversal starts from what is on screen. A layer that is already partly
+// visible keeps its opacity, scale and offset and skips the share of its delay
+// it has already shown, so a second click never makes content blink.
+function startFade(kind, spec, from, fromScale) {
+  var start = clamp(finite(from, kind === "enter" ? 0 : 1), 0, 1)
+  return {
+    kind: kind,
+    elapsed: 0,
+    from: start,
+    delay: kind === "enter" ? spec.delay * (1 - start) : spec.delay,
+    omega: 2 * Math.PI / spec.response,
+    scaleFrom: kind === "enter" && start <= 0.001 ? finite(spec.scale, 1) : finite(fromScale, 1),
+    shiftX: 0,
+    shiftY: 0
+  }
+}
+
+function fadeProgress(fade) {
+  if (!fade) return 1
+  return clamp(sampleSpring(0, 0, 1, fade.omega, 1, Math.max(0, fade.elapsed - fade.delay)).value, 0, 1)
+}
+
+function fadeOpacity(fade) {
+  if (!fade) return 1
+  var progress = fadeProgress(fade)
+  return fade.kind === "enter" ? fade.from + (1 - fade.from) * progress : fade.from * (1 - progress)
+}
+
+function fadeScale(fade) {
+  if (!fade || fade.kind !== "enter") return fade ? fade.scaleFrom : 1
+  return fade.scaleFrom + (1 - fade.scaleFrom) * fadeProgress(fade)
+}
+
+function fadeDone(fade) {
+  return !fade || fadeProgress(fade) >= 0.999
 }
 
 var PEEK_CONTENT_PROFILE = { omega: 50, zeta: 1 }
@@ -307,8 +470,8 @@ function poseWithVelocity(rect, velocity, edge, bounds) {
   return result
 }
 
-function rebaseBody(body, oldEdge, oldBounds, nextEdge, nextBounds) {
-  if (!body.key || !body.pose) return
+function rebasePose(body, oldEdge, oldBounds, nextEdge, nextBounds) {
+  if (!body || !body.pose) return
   if (oldEdge === nextEdge && oldBounds.width === nextBounds.width && oldBounds.height === nextBounds.height) return
   var currentRect = rectForPose(body.pose, oldEdge, oldBounds)
   var currentVelocity = rectVelocityForPose(body.pose, oldEdge)
@@ -324,32 +487,13 @@ function rebaseBody(body, oldEdge, oldBounds, nextEdge, nextBounds) {
     if (Math.abs(converted[name].value - bounded[name].value) > 0.01) bounded[name].velocity = 0
   }
   body.pose = bounded
-  body.lastCompact = null
+  if (body.key) body.lastCompact = null
   var target = poseValues(bounded)
   var velocityOrder = ["span", "depth", "cross", "near"]
   for (var velocityIndex = 0; velocityIndex < velocityOrder.length; velocityIndex++) {
     if (pathFits(body, target, nextEdge, nextBounds, PROFILES.expansion)) break
     body.pose[velocityOrder[velocityIndex]].velocity = 0
   }
-}
-
-function rebaseCapsule(capsule, oldEdge, oldBounds, nextEdge, nextBounds) {
-  if (!capsule || !capsule.pose) return
-  if (oldEdge === nextEdge && oldBounds.width === nextBounds.width && oldBounds.height === nextBounds.height) return
-  var currentRect = rectForPose(capsule.pose, oldEdge, oldBounds)
-  var currentVelocity = rectVelocityForPose(capsule.pose, oldEdge)
-  var converted = poseWithVelocity(currentRect, currentVelocity, nextEdge, nextBounds)
-  var boundedRect = clampRect(currentRect, nextBounds)
-  var bounded = poseWithVelocity(boundedRect, currentVelocity, nextEdge, nextBounds)
-  bounded.radius.velocity = capsule.pose.radius.velocity
-  var axes = ["cross", "near", "span", "depth", "radius"]
-  for (var index = 0; index < axes.length; index++) {
-    var name = axes[index]
-    bounded[name].omega = capsule.pose[name].omega
-    bounded[name].zeta = capsule.pose[name].zeta
-    if (Math.abs(converted[name].value - bounded[name].value) > 0.01) bounded[name].velocity = 0
-  }
-  capsule.pose = bounded
 }
 
 function createCapsule() {
@@ -536,18 +680,18 @@ function capsuleToken(desired) {
   }).join("|")
 }
 
-function setCapsuleTarget(capsule, desired, edge, bounds, reducedMotion) {
+function setCapsuleTarget(capsule, desired, edge, bounds, reducedMotion, rebased) {
   if (!desired || !desired.rect) return
   var currentRect = capsule.pose ? rectForPose(capsule.pose, edge, bounds) : null
   var previousMode = capsule.mode
   var token = capsuleToken(desired)
   var sameTarget = !!capsule.transition && capsule.transition.token === token
-  var outerProfile = desired.profile === "expansion" || previousMode === "expanded"
-    ? PROFILES.expansion : profile(desired.profile)
+  var outerProfile = previousMode === "expanded" && desired.mode !== "expanded"
+    ? PROFILES.collapse : profile(desired.profile)
   var targetPose = targetValues(makePose(desired.rect, edge, bounds, outerProfile))
   if (!capsule.pose) {
     capsule.pose = makePose(clampRect(desired.rect, bounds), edge, bounds, outerProfile)
-  } else if (!sameTarget || reducedMotion) {
+  } else if (!sameTarget || reducedMotion || rebased) {
     var fitted = reducedMotion || samePoseTarget(capsule.pose, targetPose, outerProfile)
       ? targetPose : fitTarget(capsule, targetPose, edge, bounds, outerProfile)
     capsule.pose.cross = retargetAxis(capsule.pose.cross, fitted.cross, PROFILES.collapse)
@@ -595,6 +739,8 @@ function createBody(slot) {
     contentMix: axis(1, 1, PROFILES.content),
     contentDirection: 1,
     geometryMorph: null,
+    handoff: null,
+    handoffFresh: false,
     lastCompact: null,
     sharedTitle: createSharedTitle()
   }
@@ -844,12 +990,65 @@ function samePlayerTrackReplacement(incoming, desired) {
   return previousOwner !== "" && previousOwner === mediaOwnerToken(desired.content)
 }
 
-function setContent(body, desired) {
+function renderedLayer(rendered, token) {
+  if (!rendered) return null
+  if (rendered.incoming && rendered.incoming.token === token) return rendered.incoming
+  if (rendered.outgoing && rendered.outgoing.token === token) return rendered.outgoing
+  return null
+}
+
+function endHandoff(body) {
+  body.handoff = null
+  if (body.incoming) body.incoming.fade = null
+  if (body.outgoing) body.outgoing.fade = null
+}
+
+// Swap the compact and expanded renderers of one activity. The current layer
+// becomes the leaving one and the other renderer arrives, each on its own fade.
+function beginHandoff(body, desired, token, kind, before) {
+  var timing = HANDOFF[kind]
+  var leaving = body.incoming
+  var shownLeaving = renderedLayer(before, leaving.token)
+  var shownArriving = renderedLayer(before, token)
+  leaving.fade = startFade("exit", timing.exit, shownLeaving ? shownLeaving.opacity : 1,
+    shownLeaving ? shownLeaving.scale : 1)
+  // Nothing of the leaving layer is on screen yet, so there is nothing to fade.
+  body.outgoing = leaving.fade.from > 0.001 ? leaving : null
+  body.incoming = {
+    token: token, key: desired.key, content: desired.content, expanded: kind === "open", layout: copy(desired.rect),
+    fade: startFade("enter", timing.enter, shownArriving ? shownArriving.opacity : 0,
+      shownArriving ? shownArriving.scale : 1)
+  }
+  body.handoff = kind
+  body.handoffFresh = true
+  body.contentMix = axis(1, 1, PROFILES.content)
+}
+
+// Record how far each carried layer sits from where the new handoff would put
+// it. The difference decays with that layer's own fade instead of jumping.
+function settleHandoffShift(body, shown, capsule, edge, bounds) {
+  if (!body.handoffFresh) return
+  body.handoffFresh = false
+  var fresh = renderBody(body, capsule, edge, bounds, false, 0)
+  var layers = [[body.incoming, fresh.incoming], [body.outgoing, fresh.outgoing]]
+  for (var index = 0; index < layers.length; index++) {
+    var layer = layers[index][0]
+    var drawn = layers[index][1]
+    if (!layer || !layer.fade || !drawn || !shown || !shown.rect) continue
+    var previous = renderedLayer(shown, layer.token)
+    if (!previous || previous.opacity <= 0.001) continue
+    layer.fade.shiftX = shown.rect.x + previous.offsetX - fresh.rect.x - drawn.offsetX
+    layer.fade.shiftY = shown.rect.y + previous.offsetY - fresh.rect.y - drawn.offsetY
+  }
+}
+
+function setContent(body, desired, before) {
   var token = contentToken(desired)
   if (!body.incoming) {
     body.incoming = { token: token, key: desired.key, content: desired.content, expanded: !!desired.expanded, layout: copy(desired.rect) }
     body.outgoing = null
     body.geometryMorph = null
+    body.handoff = null
     body.contentMix = axis(1, 1, PROFILES.content)
     return false
   }
@@ -860,31 +1059,35 @@ function setContent(body, desired) {
     return false
   }
   if (samePlayerTrackReplacement(body.incoming, desired)) {
-    body.incoming = { token: token, key: desired.key, content: desired.content, expanded: !!desired.expanded, layout: copy(desired.rect) }
-    body.outgoing = null
-    body.geometryMorph = null
+    // A track change in the middle of a handoff keeps the fade it is on.
+    var carriedFade = body.handoff ? body.incoming.fade : null
+    body.incoming = { token: token, key: desired.key, content: desired.content, expanded: !!desired.expanded, layout: copy(desired.rect),
+      fade: carriedFade }
+    if (body.handoff !== "close") {
+      body.outgoing = null
+      body.geometryMorph = null
+      body.handoff = null
+      if (body.incoming.fade && body.incoming.fade.kind !== "enter") body.incoming.fade = null
+    }
     body.contentMix = axis(1, 1, PROFILES.content)
     return true
   }
   if (desired.expanded && body.incoming.key === desired.key && !body.incoming.expanded) {
-    body.outgoing = body.incoming
-    body.incoming = { token: token, key: desired.key, content: desired.content, expanded: true, layout: copy(desired.rect) }
+    beginHandoff(body, desired, token, "open", before)
     body.geometryMorph = {
       token: geometryMorphToken(desired),
       sourceRect: copyRect(desired.sourceRect),
       sourceCapsuleRect: copyRect(desired.sourceCapsuleRect),
       targetRect: copyRect(desired.rect)
     }
-    body.contentMix = axis(1, 1, PROFILES.content)
     return false
   }
   if (!desired.expanded && body.incoming.key === desired.key && body.incoming.expanded) {
-    body.incoming = { token: token, key: desired.key, content: desired.content, expanded: false, layout: copy(desired.rect) }
-    body.outgoing = null
+    beginHandoff(body, desired, token, "close", before)
     body.geometryMorph = null
-    body.contentMix = axis(1, 1, PROFILES.content)
-    return
+    return false
   }
+  endHandoff(body)
   if (body.outgoing && body.outgoing.token === token) {
     var previousIncoming = body.incoming
     body.incoming = body.outgoing
@@ -918,6 +1121,7 @@ function setContent(body, desired) {
 
 function retireBody(body, edge, bounds) {
   if (!body.key || !body.pose) return
+  if (body.role !== "retiring") body.retiredRole = body.role
   body.role = "retiring"
   var target = body.lastCompact || poseValues(body.pose)
   body.pose.cross = retargetAxis(body.pose.cross, target.cross, PROFILES.collapse)
@@ -961,21 +1165,25 @@ function desiredBodies(intent) {
   return result
 }
 
+function enclosingRect(primary, secondary) {
+  var left = Math.min(primary.x, secondary.x)
+  var top = Math.min(primary.y, secondary.y)
+  var right = Math.max(primary.x + primary.width, secondary.x + secondary.width)
+  var bottom = Math.max(primary.y + primary.height, secondary.y + secondary.height)
+  return { x: left, y: top, width: right - left, height: bottom - top,
+    radius: Math.max(finite(primary.radius, 0), finite(secondary.radius, 0)) }
+}
+
 function desiredCapsule(intent) {
   if (intent && intent.capsule && intent.capsule.rect) return intent.capsule
   var primary = intent && intent.primary ? intent.primary : null
   if (!primary || !primary.rect) return null
   var secondary = intent && intent.secondary ? intent.secondary : null
   if (secondary && secondary.rect) {
-    var left = Math.min(primary.rect.x, secondary.rect.x)
-    var top = Math.min(primary.rect.y, secondary.rect.y)
-    var right = Math.max(primary.rect.x + primary.rect.width, secondary.rect.x + secondary.rect.width)
-    var bottom = Math.max(primary.rect.y + primary.rect.height, secondary.rect.y + secondary.rect.height)
     return {
       mode: "compactPair",
       profile: "compact",
-      rect: { x: left, y: top, width: right - left, height: bottom - top,
-        radius: Math.max(finite(primary.rect.radius, 0), finite(secondary.rect.radius, 0)) }
+      rect: enclosingRect(primary.rect, secondary.rect)
     }
   }
   return {
@@ -986,12 +1194,13 @@ function desiredCapsule(intent) {
 }
 
 function compactPairAssignments(state, desired) {
-  if (desired.length !== 2 || desired[0].role !== "primary" || desired[1].role !== "secondary") return null
+  if (desired.length !== 2 || (desired[0].role !== "primary" && desired[0].role !== "minimal") || desired[1].role !== "secondary") return null
   var assignments = { primary: -1, secondary: -1 }
   for (var index = 0; index < state.bodies.length; index++) {
     var body = state.bodies[index]
-    if (!body.key || (body.role !== "primary" && body.role !== "secondary")) continue
-    if (assignments[body.role] === -1) assignments[body.role] = index
+    var role = body.role === "minimal" ? "primary" : body.role
+    if (!body.key || (role !== "primary" && role !== "secondary")) continue
+    if (assignments[role] === -1) assignments[role] = index
   }
   if (assignments.primary === -1 || assignments.secondary === -1) return null
   return [
@@ -1010,21 +1219,30 @@ function reconcile(previous, intent, reducedMotion) {
   }
   if (!state.capsule) state.capsule = createCapsule()
   if (!state.peek) state.peek = createPeek()
-  rebaseCapsule(state.capsule, state.edge, state.bounds, nextEdge, nextBounds)
+  var edgeChanged = state.edge !== nextEdge
+  var rebased = edgeChanged || state.bounds.width !== nextBounds.width || state.bounds.height !== nextBounds.height
+  var movingPair = edgeChanged && source.splitGeometry && (state.split || source.secondary)
+  var openingSplit = !edgeChanged && state.split && source.primary && source.primary.expanded && state.capsule.mode !== "expanded"
+    ? renderFrame(state) : null
+  rebasePose(state.capsule, state.edge, state.bounds, nextEdge, nextBounds)
   for (var rebaseIndex = 0; rebaseIndex < state.bodies.length; rebaseIndex++) {
-    rebaseBody(state.bodies[rebaseIndex], state.edge, state.bounds, nextEdge, nextBounds)
+    rebasePose(state.bodies[rebaseIndex], state.edge, state.bounds, nextEdge, nextBounds)
   }
   state.edge = nextEdge
   state.bounds = nextBounds
+  var shown = state.bodies.map(function(candidate) {
+    return renderBody(candidate, state.capsule, state.edge, state.bounds, false, 0)
+  })
   state.alerting = source.alerting === true
   var closedPeek = !!source.peek && source.peek.placement === "closed"
   var sampledCapsuleRect = state.capsule && state.capsule.pose
     ? rectForPose(state.capsule.pose, state.edge, state.bounds) : null
   setPeekTarget(state.peek, source.peek, sampledCapsuleRect, state.edge, state.bounds,
     capsuleProgress(state.capsule, state.edge, state.bounds), reducedMotion)
+  updateSplit(state, source, reducedMotion)
   var capsule = desiredCapsule(source)
   if (closedPeek && capsule && state.peek.contentRect) capsule = Object.assign({}, capsule, { rect: state.peek.contentRect })
-  if (capsule) setCapsuleTarget(state.capsule, capsule, state.edge, state.bounds, reducedMotion)
+  if (capsule) setCapsuleTarget(state.capsule, capsule, state.edge, state.bounds, reducedMotion || movingPair, rebased)
   var desired = desiredBodies(source)
   var claimed = [false, false]
   var assignments = []
@@ -1067,6 +1285,10 @@ function reconcile(previous, intent, reducedMotion) {
     var target = assignments[assignment]
     var body = state.bodies[target.body]
     var desiredBody = target.desired
+    if (openingSplit && body.key === desiredBody.key && openingSplit.bodies[target.body].visible) {
+      desiredBody = Object.assign({}, desiredBody, { sourceRect: openingSplit.bodies[target.body].rect,
+        sourceCapsuleRect: openingSplit.split.primary })
+    }
     if (desiredBody.role === "expanded" && !desiredBody.sourceRect && body.pose) {
       desiredBody = Object.assign({}, desiredBody, {
         sourceRect: copyRect(rectForPose(body.pose, state.edge, state.bounds)),
@@ -1075,7 +1297,8 @@ function reconcile(previous, intent, reducedMotion) {
       })
     }
     var previousRole = body.role
-    if (body.key && body.key !== desiredBody.key) body.outgoing = null
+    var reversingPair = compactPair && body.outgoing && body.outgoing.token === contentToken(desiredBody)
+    if (body.key && body.key !== desiredBody.key && !reversingPair) body.outgoing = null
     body.key = desiredBody.key
     body.role = desiredBody.role
     var continuingCollapse = body.pose && body.pose.span.omega === PROFILES.collapse.omega && !settledAxis(body.pose.span)
@@ -1084,7 +1307,7 @@ function reconcile(previous, intent, reducedMotion) {
     var regionDesired = desiredBody.role === "expanded" && desiredBody.sourceRect
       ? Object.assign({}, desiredBody, { rect: desiredBody.sourceRect }) : desiredBody
     setBodyTarget(body, regionDesired, state.edge, state.bounds, selectedProfile, reducedMotion)
-    var metadataReplacement = setContent(body, desiredBody)
+    var metadataReplacement = setContent(body, desiredBody, shown[target.body])
     retargetSharedTitle(body, desiredBody, reducedMotion, metadataReplacement)
     if (reducedMotion) {
       var axes = [body.pose.cross, body.pose.near, body.pose.span, body.pose.depth, body.pose.radius, body.contentMix,
@@ -1094,7 +1317,16 @@ function reconcile(previous, intent, reducedMotion) {
         axes[axisIndex].velocity = 0
       }
       body.outgoing = null
+      body.geometryMorph = null
+      endHandoff(body)
+      body.handoffFresh = false
     }
+  }
+  for (var shiftIndex = 0; shiftIndex < state.bodies.length; shiftIndex++) {
+    // The split renderer already positions the selected lobe in screen space.
+    // A second correction from the unsplit body would move its content twice.
+    if (openingSplit && state.bodies[shiftIndex].handoff === "open") state.bodies[shiftIndex].handoffFresh = false
+    else settleHandoffShift(state.bodies[shiftIndex], shown[shiftIndex], state.capsule, state.edge, state.bounds)
   }
   for (var bodyIndex = 0; bodyIndex < state.bodies.length; bodyIndex++) {
     if (!claimed[bodyIndex]) {
@@ -1115,7 +1347,7 @@ function bodySettled(body) {
   for (var index = 0; index < axes.length; index++) {
     if (!settledAxis(axes[index])) return false
   }
-  return true
+  return fadeDone(body.incoming && body.incoming.fade) && fadeDone(body.outgoing && body.outgoing.fade)
 }
 
 function geometrySettled(body) {
@@ -1145,11 +1377,15 @@ function advance(previous, seconds) {
     body.pose.radius = advanceAxis(body.pose.radius, delta)
     body.contentMix = advanceAxis(body.contentMix, delta)
     body.sharedTitle = advanceSharedTitle(body.sharedTitle, delta)
+    if (body.incoming && body.incoming.fade) body.incoming.fade.elapsed += delta
+    if (body.outgoing && body.outgoing.fade) body.outgoing.fade.elapsed += delta
     if (body.geometryMorph && capsuleSettled(state.capsule)
-        && capsuleProgress(state.capsule, state.edge, state.bounds) >= 0.999) {
+        && capsuleProgress(state.capsule, state.edge, state.bounds) >= 0.999 && fadeDone(body.outgoing && body.outgoing.fade)) {
       body.outgoing = null
       body.geometryMorph = null
-    } else if (!body.geometryMorph && body.outgoing && body.contentMix.value > 0.995) body.outgoing = null
+    } else if (body.handoff === "close" && body.outgoing && fadeDone(body.outgoing.fade)) body.outgoing = null
+    else if (!body.geometryMorph && !body.handoff && body.outgoing && body.contentMix.value > 0.995) body.outgoing = null
+    if (body.handoff && !body.outgoing && body.incoming && fadeDone(body.incoming.fade)) endHandoff(body)
     if (body.role === "retiring" && body.pose.span.value < 0.02 && body.pose.depth.value < 0.02) state.bodies[index] = resetBody(body)
   }
   if (state.peek.content) {
@@ -1185,10 +1421,14 @@ function advance(previous, seconds) {
         && capsuleProgress(state.capsule, state.edge, state.bounds) >= 0.999) state.peek.placementTransition = null
     if (!state.peek.present && settledAxis(state.peek.reveal)) state.peek = createPeek()
   }
+  if (state.split) {
+    state.split.time = Math.min(splitTiming.settle, state.split.time + delta)
+    if (!state.split.splitting && state.split.time >= splitTiming.settle) state.split = null
+  }
   if (state.alerting && state.mapped) state.pulseSeconds += delta
   state.mapped = state.bodies.some(function(body) { return !!body.key }) || !!state.peek.content
   state.unsettled = state.alerting && state.mapped
-  if (!capsuleSettled(state.capsule)) state.unsettled = true
+  if ((state.split && state.split.time < splitTiming.settle) || !capsuleSettled(state.capsule)) state.unsettled = true
   for (var bodyIndex = 0; bodyIndex < state.bodies.length; bodyIndex++) {
     if (!bodySettled(state.bodies[bodyIndex])) state.unsettled = true
   }
@@ -1201,6 +1441,7 @@ function advance(previous, seconds) {
 function clear(previous) {
   var state = copy(previous || initialState())
   state.capsule = createCapsule()
+  state.split = null
   state.bodies = [createBody(0), createBody(1)]
   state.peek = createPeek()
   state.mapped = false
@@ -1234,8 +1475,19 @@ function layerOffset(surfaceRect, layout) {
   }
 }
 
+// The leaving detail stays pinned to the bar side while the capsule shrinks
+// under it, so it recedes into the bar instead of sliding toward the centre.
+function nearEdgeOffset(surfaceRect, layout, edge) {
+  var width = Math.max(0, finite(layout && layout.width, 0))
+  var height = Math.max(0, finite(layout && layout.height, 0))
+  if (edge === "left") return { x: 0, y: (surfaceRect.height - height) / 2 }
+  if (edge === "right") return { x: surfaceRect.width - width, y: (surfaceRect.height - height) / 2 }
+  if (edge === "bottom") return { x: (surfaceRect.width - width) / 2, y: surfaceRect.height - height }
+  return { x: (surfaceRect.width - width) / 2, y: 0 }
+}
+
 function renderBody(body, capsule, edge, bounds, alerting, pulse) {
-  if (!body.key || !body.pose) return { visible: false, slot: body.slot }
+  if (!body.key || !body.pose) return { visible: false, slot: body.slot, opacity: 0 }
   var regionRect = rectForPose(body.pose, edge, bounds)
   var capsuleRect = capsule && capsule.pose ? rectForPose(capsule.pose, edge, bounds) : regionRect
   var regionUsesCapsule = usesCapsule(body, capsule)
@@ -1267,8 +1519,22 @@ function renderBody(body, capsule, edge, bounds, alerting, pulse) {
     if (body.outgoing) outgoingOffset = { x: regionOffset.x, y: regionOffset.y }
   }
 
+  if (body.handoff === "close" && body.outgoing) outgoingOffset = nearEdgeOffset(surfaceRect, body.outgoing.layout, edge)
+  var incomingFade = body.incoming ? body.incoming.fade : null
+  var outgoingFade = body.outgoing ? body.outgoing.fade : null
+  // An opening moves its layers on the capsule's progress, so a carried shift
+  // decays on that same clock. Two clocks would push the layer past its place.
+  if (incomingFade) {
+    var incomingRemaining = morph ? 1 - progress : 1 - fadeProgress(incomingFade)
+    incomingOffset = { x: incomingOffset.x + incomingFade.shiftX * incomingRemaining, y: incomingOffset.y + incomingFade.shiftY * incomingRemaining }
+  }
+  if (outgoingFade) {
+    var outgoingRemaining = morph ? 1 - progress : 1 - fadeProgress(outgoingFade)
+    outgoingOffset = { x: outgoingOffset.x + outgoingFade.shiftX * outgoingRemaining, y: outgoingOffset.y + outgoingFade.shiftY * outgoingRemaining }
+  }
+
   var mix = clamp(body.contentMix.value, 0, 1)
-  if (!morph && body.incoming && body.outgoing) {
+  if (!morph && !body.handoff && body.incoming && body.outgoing) {
     var rollDistance = Math.max(body.incoming.layout.height, body.outgoing.layout.height)
     incomingOffset.y += body.contentDirection * (1 - mix) * rollDistance
     outgoingOffset.y -= body.contentDirection * mix * rollDistance
@@ -1296,19 +1562,25 @@ function renderBody(body, capsule, edge, bounds, alerting, pulse) {
     rectVelocity: regionUsesCapsule ? rectVelocityForPose(capsule.pose, edge) : rectVelocityForPose(body.pose, edge),
     sharedTitle: renderSharedTitle(body.sharedTitle, body.key, contentOwnsHeader),
     incoming: body.incoming ? {
+      token: body.incoming.token,
       content: body.incoming.content,
       expanded: body.incoming.expanded,
       layout: body.incoming.layout,
-      opacity: 1,
+      opacity: fadeOpacity(incomingFade),
+      scale: fadeScale(incomingFade),
+      origin: edge,
       blur: 0,
       offsetX: incomingOffset.x,
       offsetY: incomingOffset.y
     } : null,
     outgoing: body.outgoing ? {
+      token: body.outgoing.token,
       content: body.outgoing.content,
       expanded: body.outgoing.expanded,
       layout: body.outgoing.layout,
-      opacity: 1,
+      opacity: fadeOpacity(outgoingFade),
+      scale: fadeScale(outgoingFade),
+      origin: edge,
       blur: 0,
       offsetX: outgoingOffset.x,
       offsetY: outgoingOffset.y
@@ -1415,20 +1687,86 @@ function renderFrame(state) {
   var capsule = source.capsule || createCapsule()
   var peek = source.peek || createPeek()
   var pulse = source.alerting ? 0.2 + 0.7 * (0.5 + 0.5 * Math.sin(source.pulseSeconds * Math.PI * 2 / 0.72)) : 0
+  var outer = renderCapsule(capsule, source.edge, source.bounds, source.mapped)
+  var bodies = source.bodies.map(function(body) {
+    return renderBody(body, capsule, source.edge, source.bounds, source.alerting, pulse)
+  })
+  var split = source.split
+  var shape = null
+  if (split) {
+    var pose = splitFrame(split.time, split.splitting, split.height, split.gap, split.start)
+    var rect = outer.rect
+    var diameter = split.height
+    var bubbleSpan = Math.max(diameter, pose.right - pose.left)
+    var primary = copyRect(rect)
+    var bubble
+    var neck
+    if (split.vertical) {
+      // The side bar starts with a single circle. Separate the two centres
+      // around that anchor once the horizontal lobe would emerge from the cap.
+      var separation = Math.max(0, diameter + pose.left - pose.primary)
+      primary.y -= separation / 2
+      bubble = { x: source.edge === "right" ? rect.x + rect.width - diameter : rect.x,
+        y: rect.y + rect.height - diameter + separation / 2,
+        width: diameter, height: diameter, radius: diameter / 2 }
+      neck = rect.width <= diameter + 1 ? neckPath(primary.height, bubble.y - primary.y, diameter) : ""
+    } else {
+      primary.width = Math.max(Math.min(diameter, rect.width), rect.width + pose.primary)
+      bubble = { x: rect.x + rect.width + pose.left,
+        y: source.edge === "bottom" ? rect.y + rect.height - split.depth : rect.y,
+        width: bubbleSpan, height: split.depth, radius: diameter / 2 }
+      neck = rect.height <= diameter + 1 ? neckPath(primary.width, bubble.x - rect.x, diameter) : ""
+    }
+    shape = { primary: primary, bubble: pose.bubble ? bubble : null, vertical: split.vertical,
+      neck: pose.bubble ? neck : "" }
+    for (var index = 0; index < bodies.length; index++) {
+      var layer = bodies[index]
+      var body = source.bodies[index]
+      var departingBubble = layer.role === "retiring" && body.retiredRole === "secondary"
+      if (!layer.visible && !departingBubble) continue
+      var secondary = layer.role === "secondary" || layer.role === "retiring"
+      layer.rect = secondary ? bubble : primary
+      if (!layer.incoming || !layer.incoming.expanded) layer.titleSampleRect = layer.rect
+      else if (source.bodies[index].geometryMorph && layer.outgoing) {
+        // The expanded body clips its outgoing content. Include both lobes
+        // while the selected compact region can still be outside the main pill.
+        layer.rect = pose.bubble ? enclosingRect(primary, bubble) : primary
+        layer.incoming.offsetX += primary.x - layer.rect.x
+        layer.incoming.offsetY += primary.y - layer.rect.y
+        layer.outgoing.offsetX += rect.x - layer.rect.x
+        layer.outgoing.offsetY += rect.y - layer.rect.y
+        layer.outgoing.layout = source.bodies[index].geometryMorph.sourceRect
+      }
+      layer.opacity = secondary ? pose.ink : 1
+      layer.visible = !secondary || pose.bubble
+      if (layer.incoming && !layer.incoming.expanded) {
+        layer.incoming.layout = layer.rect
+        layer.incoming.offsetX = 0
+        layer.incoming.offsetY = 0
+        if (layer.outgoing && !layer.outgoing.expanded) {
+          var mix = clamp(body.contentMix.value, 0, 1)
+          layer.outgoing.layout = layer.rect
+          layer.outgoing.offsetX = 0
+          layer.incoming.offsetY = body.contentDirection * (1 - mix) * layer.rect.height
+          layer.outgoing.offsetY = -body.contentDirection * mix * layer.rect.height
+        }
+      }
+    }
+  }
   return {
     mapped: !!source.mapped,
     unsettled: !!source.unsettled,
-    capsule: renderCapsule(capsule, source.edge, source.bounds, source.mapped),
-    bodies: [
-      renderBody(source.bodies[0], capsule, source.edge, source.bounds, source.alerting, pulse),
-      renderBody(source.bodies[1], capsule, source.edge, source.bounds, source.alerting, pulse)
-    ],
+    capsule: outer,
+    split: shape,
+    bodies: bodies,
     peek: renderPeek(peek, capsule, source.edge, source.bounds)
   }
 }
 
 if (typeof module !== "undefined") {
   module.exports = {
+    splitFrame: splitFrame,
+    neckPath: neckPath,
     PROFILES: PROFILES,
     sampleSpring: sampleSpring,
     advanceAxis: advanceAxis,

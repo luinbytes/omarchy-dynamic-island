@@ -1,3 +1,4 @@
+import Quickshell
 import QtQuick
 import Quickshell.Io
 import "NotificationModel.js" as NotificationModel
@@ -23,12 +24,20 @@ Item {
     ? nativeService.historyDir : ""
   readonly property string omapagerHistoryDir: usesOmapager && omapagerService && typeof omapagerService.home === "string"
     && omapagerService.home.charAt(0) === "/" ? omapagerService.home + "/.local/state/omarchy/omapager/history" : ""
+  readonly property bool persisted: !usesOmapager && !popupModel
+  DesktopSnapshot {
+    id: disk
+    enabled: root.enabled && root.persisted
+    directory: Quickshell.env("HOME") + "/.local/state/omarchy/notifications"
+    mode: "notifications"
+    onSnapshotChanged: if (root.persisted) root.schedulePopupSync(false)
+  }
   readonly property bool available: enabled && (usesOmapager
     ? !!omapagerLayout && Array.isArray(omapagerLayout.decks)
-    : !!nativeService && !!popupModel && historyDir.charAt(0) === "/")
+    : persisted ? disk.snapshot.available === true : !!nativeService && !!popupModel)
   readonly property bool dnd: available && (usesOmapager
     ? omapagerService.doNotDisturb === true || Number(omapagerService.globalSnoozeUntil) > Date.now() / 1000
-    : nativeService.doNotDisturb === true)
+    : persisted ? disk.snapshot.dnd === true : nativeService.doNotDisturb === true)
 
   property var _liveEntries: []
   property var _historyEntries: []
@@ -206,11 +215,25 @@ Item {
       clearLive("Notification service unavailable")
       return false
     }
+    if (persisted) {
+      function entries(rows, live) {
+        return (rows || []).map(function(row) {
+          var item = disk.snapshot.modern ? NotificationModel.normalizeOmapagerEntry(row, live)
+            : NotificationModel.normalizeEntry(row, live)
+          if (item) { item.canInvoke = false; item.canDismiss = false }
+          return item
+        }).filter(function(item) { return !!item })
+      }
+      _historyEntries = entries(disk.snapshot.history, false)
+      applyLiveEntries(entries(disk.snapshot.live, true), {})
+      return true
+    }
     return providerId === "omapager" ? syncOmapagerRows() : syncNativePopups()
   }
 
   function refreshHistory() {
     if (!enabled) return false
+    if (persisted) return syncPopups()
     if (_historyProcessQuarantined) {
       _historyError = "Notification history helper is unavailable"
       return false
@@ -347,7 +370,7 @@ Item {
       schedulePopupSync(false)
       return true
     }
-    if (!available || typeof nativeService.invokePopupDefault !== "function") return false
+    if (!available || !nativeService || typeof nativeService.invokePopupDefault !== "function") return false
     var index = popupIndex(key)
     if (index < 0) return false
     nativeService.invokePopupDefault(index)
@@ -364,7 +387,7 @@ Item {
       schedulePopupSync(false)
       return true
     }
-    if (!available || typeof nativeService.dismissPopup !== "function") return false
+    if (!available || !nativeService || typeof nativeService.dismissPopup !== "function") return false
     var index = popupIndex(key)
     if (index < 0) return false
     nativeService.dismissPopup(index)

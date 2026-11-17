@@ -76,7 +76,7 @@ assert.match(storeSource, /if \(!herdrOnline\) \{[\s\S]*herdrEnumerationReady = 
   "reported-source disconnects reset readiness before a later reconnect")
 assert.match(storeSource, /hookSubscribed \? true : herdrEnumerationReady/,
   "hook subscription remains ready so its first live event is not swallowed")
-assert.match(panelSource, /property real headerRightInset: 32/, "the global ellipsis owns the upper-right inset")
+assert.match(panelSource, /property real headerRightInset: 0/, "the activity has the full header width")
 assert.match(panelSource, /readonly property real preferredHeight: Math\.ceil\(contentColumn\.implicitHeight\)/,
   "semantic content and font metrics own preferred height")
 assert.doesNotMatch(panelSource, /Flickable|ListView|ScrollView|WheelHandler/, "agent pages never scroll")

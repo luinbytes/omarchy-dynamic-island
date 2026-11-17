@@ -47,14 +47,21 @@ function tick(state, seconds, steps) {
   return next
 }
 
-assert.equal(motion.PROFILES.expansion.omega, Math.PI * 2 / 0.32, "the perimeter uses the Nootch 0.32 second response translation")
-assert.equal(motion.PROFILES.expansion.zeta, 0.88, "the perimeter uses the Nootch damping fraction")
-assert.equal(motion.PROFILES.collapse.omega, motion.PROFILES.expansion.omega, "closing keeps the same outer response")
-assert.equal(motion.PROFILES.collapse.zeta, motion.PROFILES.expansion.zeta, "closing keeps the same outer damping")
-const outerSamples = [100, 200].map(ms => motion.sampleSpring(0, 0, 1,
-  motion.PROFILES.expansion.omega, motion.PROFILES.expansion.zeta, ms / 1000).value)
-assert.ok(outerSamples[0] > 0.60 && outerSamples[0] < 0.67, "the Nootch-derived perimeter reaches its early expansion sample")
-assert.ok(outerSamples[1] > 0.93 && outerSamples[1] < 0.98, "the Nootch-derived perimeter reaches its 200 ms sample")
+// Split grows a connected lobe before the delayed pinch. Merge absorbs it before the pill settles.
+const split = t => motion.splitFrame(t, true, 22, 6)
+const merge = t => motion.splitFrame(t, false, 22, 6)
+assert.equal(split(0).primary, 0)
+assert.equal(split(0.3).left, split(0).left)
+assert.ok(motion.neckPath(split(0.45).primary, split(0.45).left, 22))
+assert.equal(motion.neckPath(split(1.5).primary, split(1.5).left, 22), "")
+assert.ok(Math.abs(split(1.5).primary + 28) < 0.01)
+assert.ok(merge(0.15).bubble)
+assert.equal(merge(0.21).bubble, false)
+const interrupted = split(0.42)
+const reversed = motion.splitFrame(0, false, 22, 6, interrupted)
+for (const axis of ["primary", "left", "right", "vPrimary", "vLeft", "vRight"]) {
+  assert.equal(reversed[axis], interrupted[axis], "mid-split reversal preserves " + axis)
+}
 
 let state = motion.initialState()
 state = motion.reconcile(state, intent(body("a", { x: 250, y: 0, width: 200, height: 22, radius: 11 }, "primary")), false)
@@ -99,7 +106,7 @@ const closingCapsule = visual.rect
 state = motion.reconcile(state, intent(body("third", { x: 250, y: 0, width: 200, height: 22, radius: 11 }, "primary", "compact", 3)), false)
 visual = motion.renderFrame(state).bodies.find(candidate => candidate.key === "third")
 assert.deepEqual(visual.rect, closingCapsule, "closing retains the sampled whole capsule")
-assert.equal(visual.outgoing, null, "closing replaces detail content without another full-height roll")
+assert.equal(visual.outgoing, null, "closing before any detail is visible leaves nothing to fade out")
 assert.equal(visual.incoming.expanded, false, "closing restores the compact semantic renderer inside the sampled capsule")
 
 const agentsCompact = { x: 835, y: 2, width: 250, height: 22, radius: 11 }
@@ -110,6 +117,10 @@ const agentsExpandedBody = Object.assign(body("agents", agentsExpanded, "expande
 })
 state = motion.reconcile(motion.initialState(), intent(body("agents", agentsCompact, "primary"), null, { bounds: { width: 1920, height: 1080 } }), true)
 state = motion.reconcile(state, intent(agentsExpandedBody, null, { bounds: { width: 1920, height: 1080 } }), false)
+const openFrame = seconds => motion.renderFrame(motion.advance(state, seconds)).bodies[0]
+assert.equal(openFrame(0.05).incoming.opacity, 0, "the compact content leads the start of the opening")
+assert.ok(openFrame(0.1).incoming.opacity > 0 && openFrame(0.1).incoming.opacity < 1)
+assert.ok(openFrame(0.15).outgoing.opacity < openFrame(0.1).outgoing.opacity)
 state = tick(state, 2, 240)
 visual = motion.renderFrame(state).bodies[0]
 assert.equal(visual.geometrySettled, true, "the captured Agents expansion reaches its settled capsule pose")
@@ -118,8 +129,95 @@ assert.deepEqual({
   height: Math.round(visual.rect.height), radius: Math.round(visual.rect.radius)
 }, agentsExpanded, "the captured Agents capsule settles at its expanded geometry")
 assert.deepEqual(visual.regionRect, agentsCompact, "the retained compact region remains available as projection history")
-assert.equal(visual.incoming.offsetX, 0, "a settled expanded layer starts at the capsule-local x origin")
+assert.ok(Math.abs(visual.incoming.offsetX) < 0.001, "a settled expanded layer starts at the capsule-local x origin")
 assert.ok(Math.abs(visual.incoming.offsetY) < 0.001, "a settled expanded layer starts at the capsule-local y origin")
+
+// Click handoff between the compact and expanded renderers, in both directions
+// and when a second click reverses the first one partway through.
+{
+  const compact = { x: 835, y: 2, width: 250, height: 22, radius: 11 }
+  const expanded = { x: 807, y: 2, width: 306, height: 228, radius: 28 }
+  const bounds = { width: 1920, height: 1080 }
+  const open = () => Object.assign(body("handoff", expanded, "expanded", "expansion"), { sourceRect: compact, sourceCapsuleRect: compact })
+  const close = () => body("handoff", compact, "primary")
+  const at = (state, rect) => ({ x: state.rect.x + rect.offsetX, y: state.rect.y + rect.offsetY })
+  const layers = frame => ({
+    compact: [frame.incoming, frame.outgoing].find(layer => layer && !layer.expanded) || null,
+    detail: [frame.incoming, frame.outgoing].find(layer => layer && layer.expanded) || null
+  })
+  const near = (left, right, label) => assert.ok(Math.abs(left - right) < 0.5, `${label}: ${left} vs ${right}`)
+  let handoff = motion.reconcile(motion.initialState(), intent(close(), null, { bounds }), true)
+  handoff = motion.reconcile(handoff, intent(open(), null, { bounds }), false)
+  handoff = tick(handoff, 2, 240)
+  assert.equal(motion.renderFrame(handoff).bodies[0].outgoing, null, "a settled opening keeps one content layer")
+
+  handoff = motion.reconcile(handoff, intent(close(), null, { bounds }), false)
+  let frame = motion.renderFrame(handoff).bodies[0]
+  assert.equal(frame.outgoing.expanded, true, "closing keeps the detail on screen as the leaving layer")
+  assert.equal(frame.outgoing.opacity, 1, "the detail does not vanish on the closing click")
+  assert.equal(frame.incoming.opacity, 0, "the compact text waits while the capsule shrinks")
+  near(frame.outgoing.offsetY, 0, "the leaving detail stays pinned to the bar edge")
+  const closing = seconds => motion.renderFrame(motion.advance(handoff, seconds)).bodies[0]
+  assert.ok(closing(0.12).outgoing.opacity < 0.7, "the detail leads the close")
+  assert.equal(closing(0.18).incoming.opacity, 0, "the compact text waits for the detail to clear")
+  for (let seconds = 0; seconds <= 0.6; seconds += 1 / 60) {
+    const sample = closing(seconds)
+    if (sample.outgoing && sample.incoming.opacity > 0.1) assert.ok(sample.outgoing.opacity < 0.1, `the two renderers never read as one layer at ${seconds}`)
+  }
+  assert.ok(closing(0.4).incoming.opacity > 0.6 && closing(0.4).incoming.scale < 1, "the compact text grows back in as the pill lands")
+  const closed = tick(handoff, 2, 240)
+  frame = motion.renderFrame(closed).bodies[0]
+  assert.equal(frame.outgoing, null, "the detail layer retires once it has faded")
+  assert.equal(frame.incoming.opacity, 1)
+  assert.equal(frame.incoming.scale, 1)
+  assert.equal(frame.settled, true, "a finished close settles the frame clock")
+  assert.equal(closed.unsettled, false)
+
+  // Second click while opening: what is on screen carries into the close.
+  let reversed = motion.reconcile(closed, intent(open(), null, { bounds }), false)
+  reversed = tick(reversed, 0.15, 18)
+  const opening = layers(motion.renderFrame(reversed).bodies[0])
+  assert.ok(opening.detail.opacity > 0.2 && opening.compact.opacity < 0.5, "sampled partway through the opening")
+  reversed = motion.reconcile(reversed, intent(close(), null, { bounds }), false)
+  let swapped = layers(motion.renderFrame(reversed).bodies[0])
+  const reversedFrame = motion.renderFrame(reversed).bodies[0]
+  near(swapped.detail.opacity, opening.detail.opacity, "detail opacity is continuous across the reversal")
+  near(swapped.compact.opacity, opening.compact.opacity, "compact opacity is continuous across the reversal")
+  near(swapped.detail.scale, opening.detail.scale, "detail scale is continuous across the reversal")
+  const before = motion.renderFrame(tick(motion.reconcile(closed, intent(open(), null, { bounds }), false), 0.15, 18)).bodies[0]
+  near(at(reversedFrame, swapped.detail).y, at(before, opening.detail).y, "detail position is continuous across the reversal")
+  near(at(reversedFrame, swapped.compact).y, at(before, opening.compact).y, "compact position is continuous across the reversal")
+  const afterReverse = layers(motion.renderFrame(motion.advance(reversed, 1 / 60)).bodies[0])
+  assert.ok(afterReverse.detail.opacity <= swapped.detail.opacity, "the detail turns back without a flash")
+
+  // Third click while closing: the detail returns from its current opacity.
+  reversed = tick(reversed, 0.1, 12)
+  const midClose = layers(motion.renderFrame(reversed).bodies[0])
+  reversed = motion.reconcile(reversed, intent(open(), null, { bounds }), false)
+  swapped = layers(motion.renderFrame(reversed).bodies[0])
+  near(swapped.detail.opacity, midClose.detail.opacity, "reopening keeps the detail opacity")
+  near(swapped.compact.opacity, midClose.compact.opacity, "reopening keeps the compact opacity")
+  const reopenStart = at(motion.renderFrame(reversed).bodies[0], swapped.detail).y
+  let lowest = reopenStart
+  for (let step = 1; step <= 60; step++) {
+    const sample = motion.renderFrame(motion.advance(reversed, step / 60)).bodies[0]
+    lowest = Math.min(lowest, at(sample, layers(sample).detail).y)
+  }
+  assert.ok(lowest > Math.min(reopenStart, expanded.y) - 1, `the reopened detail does not dip past its place (${lowest})`)
+  reversed = tick(reversed, 2, 240)
+  frame = motion.renderFrame(reversed).bodies[0]
+  assert.equal(frame.outgoing, null)
+  assert.equal(frame.incoming.expanded, true)
+  assert.equal(frame.incoming.opacity, 1, "a reversed opening still finishes fully shown")
+  assert.ok(Math.abs(frame.incoming.offsetX) < 0.001 && Math.abs(frame.incoming.offsetY) < 0.001, "and with no residual offset")
+
+  // Reduced motion swaps in one step.
+  let reduced = motion.reconcile(reversed, intent(close(), null, { bounds }), true)
+  frame = motion.renderFrame(reduced).bodies[0]
+  assert.equal(frame.outgoing, null, "reduced motion has no leaving layer")
+  assert.equal(frame.incoming.opacity, 1)
+  assert.equal(reduced.unsettled, false)
+}
 
 function edgeMetrics(edge) {
   const width = 1920
@@ -153,10 +251,11 @@ for (const edge of ["top", "bottom", "left", "right"]) {
     edge + " settled expanded content uses its capsule-local origin")
 }
 
-const pairLeft = { x: 250, y: 0, width: 176, height: 22, radius: 11 }
-const pairRight = { x: 432, y: 0, width: 68, height: 22, radius: 11 }
+const { card: pairLeft, secondary: pairRight } = viewModel.geometryFor("compact", true,
+  viewModel.screenMetrics(edgeMetrics("top")), false)
 function pairIntent(primaryKey, secondaryKey) {
-  return intent(body(primaryKey, pairLeft, "primary"), body(secondaryKey, pairRight, "secondary"))
+  return intent(body(primaryKey, pairLeft, "primary"), body(secondaryKey, pairRight, "secondary"),
+    { bounds: edgeMetrics("top").screen })
 }
 function pairOverlap(first, second) {
   return Math.max(0, Math.min(first.x + first.width, second.x + second.width) - Math.max(first.x, second.x))
@@ -325,14 +424,13 @@ state = motion.reconcile(state, intent(mediaBody("media", mediaExpanded, "expand
 state = motion.advance(state, 0.12)
 visual = motion.renderFrame(state).bodies[0]
 const titlePositionBeforeReverse = viewModel.titleSample(visual.rect, visual.sharedTitle)
-const titleVelocityBeforeReverse = viewModel.titleVelocity(visual.rectVelocity, visual.sharedTitle)
-assert.notEqual(titleVelocityBeforeReverse, 0, "midflight shared title has body-derived velocity")
+const velocityBeforeReverse = { ...visual.rectVelocity }
+assert.notEqual(velocityBeforeReverse.height, 0, "midflight title-bearing body has height velocity")
 state = motion.reconcile(state, intent(mediaBody("media", mediaCompact, "primary", "track-a", "Night Drive")), false)
 visual = motion.renderFrame(state).bodies[0]
 const titlePositionAfterReverse = viewModel.titleSample(visual.rect, visual.sharedTitle)
-const titleVelocityAfterReverse = viewModel.titleVelocity(visual.rectVelocity, visual.sharedTitle)
 assert.equal(titlePositionAfterReverse.x, titlePositionBeforeReverse.x, "shared title position samples the unchanged reversal pose")
-assert.equal(titleVelocityAfterReverse, titleVelocityBeforeReverse, "shared title velocity follows the retained body velocity")
+assert.deepEqual(visual.rectVelocity, velocityBeforeReverse, "reversal retains velocity on every body axis used to position the title")
 const detailBeforeTitleUpdate = visual.outgoing
 state = motion.reconcile(state, intent(mediaBody("media", mediaCompact, "primary", "track-a", "Corrected Title")), false)
 visual = motion.renderFrame(state).bodies[0]
@@ -547,3 +645,127 @@ for (const edge of ["top", "bottom", "left", "right"]) {
   assert.deepEqual(frame.capsule.rect, mainBeforeExpiry, edge + " peek expiry leaves main geometry untouched")
 }
 console.log("analytical motion model passed")
+
+const test = require("node:test")
+
+function nativeIntent(edge, primaryKey, secondaryKey, options = {}) {
+  const raw = Object.assign(edgeMetrics(edge), options.metrics)
+  const metrics = viewModel.screenMetrics(raw)
+  const phase = options.expanded ? "expanded" : "compact"
+  const primary = { key: primaryKey, revision: 1 }
+  const hub = require("../../shell/plugins/island/HubModel.js")
+  const state = hub.initialState()
+  const secondary = secondaryKey ? { key: secondaryKey, revision: 1 } : null
+  const frame = hub.frameFor(state, { ...state.schedule, reason: "active", primary, secondary }, "monitor", metrics, viewModel)
+  return viewModel.motionIntentFor({
+    phase, splitGeometry: options.expanded ? null : frame.splitGeometry, primary, selected: primary,
+    secondary: secondaryKey ? { key: secondaryKey, revision: 1 } : null,
+    splitMinimal: !!secondaryKey && (edge === "left" || edge === "right"),
+    geometry: viewModel.geometryFor(phase, !!secondaryKey, metrics, false)
+  }, raw)
+}
+
+test("a visible lobe interrupted during absorption carries position, velocity and ink", () => {
+  for (const t of [0.005, 0.05, 0.2]) {
+    const start = merge(t)
+    const reverse = dt => motion.splitFrame(dt, true, 22, 6, start)
+    assert.equal(reverse(0).ink, start.ink)
+    for (const [edge, velocity] of [["left", "vLeft"], ["right", "vRight"], ["primary", "vPrimary"]]) {
+      assert.equal(reverse(0)[edge], start[edge])
+      const speed = (reverse(0.000001)[edge] - start[edge]) / 0.000001
+      assert.ok(Math.abs(speed - start[velocity]) < 0.02)
+    }
+  }
+  const absorbed = merge(0.25)
+  const restart = motion.splitFrame(0, true, 22, 6, absorbed)
+  assert.equal(restart.right, absorbed.primary)
+  assert.equal(restart.ink, 0)
+})
+
+for (const edge of ["top", "bottom", "left", "right"]) {
+  const one = nativeIntent(edge, "a")
+  const pair = nativeIntent(edge, "a", "b")
+  test(edge + " split starts inside the pill and settles on both keyed targets", () => {
+    let state = motion.reconcile(motion.initialState(), one, true)
+    state = motion.reconcile(state, pair, false)
+    const first = motion.renderFrame(state).split
+    assert.deepEqual(first.primary, one.primary.rect)
+    assert.ok(first.bubble.x >= first.primary.x && first.bubble.y >= first.primary.y)
+    assert.ok(first.bubble.x + first.bubble.width <= first.primary.x + first.primary.width)
+    assert.ok(first.bubble.y + first.bubble.height <= first.primary.y + first.primary.height)
+    const settled = motion.renderFrame(motion.advance(state, 2)).split
+    assert.deepEqual(settled.primary, pair.primary.rect)
+    assert.deepEqual(settled.bubble, pair.secondary.rect)
+  })
+
+  test(edge + " pair swaps roll in place and reverse from the painted offsets", () => {
+    const initial = motion.reconcile(motion.initialState(), pair, true)
+    let state = motion.reconcile(initial, nativeIntent(edge, "b", "a"), false)
+    let frame = motion.renderFrame(state)
+    assert.equal(frame.bodies[0].key, "b")
+    assert.equal(frame.bodies[0].outgoing.content.key, "a")
+    assert.equal(Math.abs(frame.bodies[0].incoming.offsetY), pair.primary.rect.height)
+    state = motion.advance(state, 0.08)
+    const before = motion.renderFrame(state)
+    frame = motion.renderFrame(motion.reconcile(state, pair, false))
+    for (const layer of frame.bodies) {
+      const previous = before.bodies[layer.slot]
+      assert.ok(Math.abs(layer.incoming.offsetY - previous.outgoing.offsetY) < 1e-8)
+      assert.ok(Math.abs(layer.outgoing.offsetY - previous.incoming.offsetY) < 1e-8)
+    }
+  })
+
+  test(edge + " opening a moving bubble retains the painted source of the selected key", () => {
+    let state = motion.reconcile(motion.initialState(), one, true)
+    state = motion.advance(motion.reconcile(state, pair, false), 0.42)
+    const before = motion.renderFrame(state).bodies.find(layer => layer.key === "b")
+    const after = motion.renderFrame(motion.reconcile(state, nativeIntent(edge, "b", null, { expanded: true }), false))
+      .bodies.find(layer => layer.key === "b")
+    assert.equal(after.slot, before.slot)
+    assert.deepEqual(after.outgoing.layout, before.rect)
+    assert.ok(after.outgoing.offsetX >= -1e-8 && after.outgoing.offsetY >= -1e-8)
+    assert.ok(after.outgoing.offsetX + before.rect.width <= after.rect.width + 1e-8)
+    assert.ok(after.outgoing.offsetY + before.rect.height <= after.rect.height + 1e-8)
+    assert.ok(Math.abs(after.rect.x + after.outgoing.offsetX - before.rect.x) < 1e-8)
+    assert.ok(Math.abs(after.rect.y + after.outgoing.offsetY - before.rect.y) < 1e-8)
+  })
+}
+
+test("opening the primary keeps the retiring secondary visible until absorption", () => {
+  const pair = nativeIntent("top", "a", "b")
+  let state = motion.reconcile(motion.initialState(), pair, true)
+  state = motion.reconcile(state, nativeIntent("top", "a", null, { expanded: true }), false)
+  const secondary = dt => motion.renderFrame(motion.advance(state, dt)).bodies.find(layer => layer.key === "b")
+  assert.equal(secondary(0).visible, true)
+  assert.ok(secondary(0.1).opacity > 0 && secondary(0.1).opacity < 1)
+  assert.equal(secondary(0.21).visible, false)
+})
+
+test("relocating a split to a side bar uses that bar's compact footprint", () => {
+  const top = motion.reconcile(motion.initialState(), nativeIntent("top", "a", "b"), true)
+  const side = nativeIntent("right", "a", "b")
+  const first = motion.renderFrame(motion.reconcile(top, side, false))
+  assert.deepEqual(first.split.primary, side.primary.rect)
+  assert.deepEqual(first.split.bubble, side.secondary.rect)
+})
+
+test("constrained slots and thick bars retain the measured split targets through merge", () => {
+  for (const width of [48, 250]) {
+    const metrics = { compactHeight: 30, anchor: { x: 80, y: 0, width, height: 32 } }
+    const pair = nativeIntent("top", "a", "b", { metrics })
+    let state = motion.reconcile(motion.initialState(), pair, true)
+    const settled = motion.renderFrame(state).split
+    assert.deepEqual(settled.primary, pair.primary.rect)
+    assert.deepEqual(settled.bubble, pair.secondary.rect)
+    state = motion.reconcile(state, nativeIntent("top", "a", null, { metrics }), false)
+    assert.deepEqual(motion.renderFrame(state).split, settled)
+  }
+})
+
+test("changing bounds mid-expansion retains an unchanged screen-space target", () => {
+  let state = motion.reconcile(motion.initialState(), nativeIntent("top", "a"), true)
+  const open = nativeIntent("top", "a", null, { expanded: true })
+  state = motion.advance(motion.reconcile(state, open, false), 0.12)
+  state = motion.reconcile(state, { ...open, bounds: { width: 2000, height: 1100 } }, false)
+  assert.equal(Math.round(motion.renderFrame(motion.advance(state, 2)).capsule.rect.height), open.primary.rect.height)
+})

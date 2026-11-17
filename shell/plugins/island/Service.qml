@@ -1,3 +1,4 @@
+import QtCore
 import QtQuick
 import Quickshell
 import Quickshell.Hyprland
@@ -38,6 +39,7 @@ Item {
   property int presenterClaimsRevision: 0
   readonly property var nextWakeAt: root.earlierDeadline(root.activityNextWakeAt,
     root.earlierDeadline(root.hubNextWakeAt, root.peekNextWakeAt))
+  readonly property alias downloads: downloadStore
   readonly property alias music: mediaPublisher
   readonly property alias weather: weatherStore
   readonly property alias agents: agentStore
@@ -54,6 +56,7 @@ Item {
     agents: agentStore.snapshot,
     notifications: notificationStore.snapshot,
     notificationPreviewUntil: notificationStore.previewUntil,
+    downloads: downloadStore.snapshot,
     system: systemStore.snapshot,
     media: mediaPublisher.peekSourceSnapshot
   })
@@ -81,27 +84,6 @@ Item {
     if (next === hubState) return false
     hubState = next
     presentationGate = PresentationGateModel.bypass(root.presentationGate, screen, root.peekState)
-    return true
-  }
-
-  function toggleHubChooser(screen) {
-    var next = HubModel.toggleChooser(hubState, screen)
-    if (next === hubState) return false
-    hubState = next
-    return true
-  }
-
-  function closeHubChooser(screen) {
-    var next = HubModel.closeChooser(hubState, screen)
-    if (next === hubState) return false
-    hubState = next
-    return true
-  }
-
-  function chooseHubTool(tool, screen) {
-    var next = HubModel.chooseTool(hubState, tool, screen)
-    if (next === hubState) return false
-    hubState = next
     return true
   }
 
@@ -267,6 +249,8 @@ Item {
     var peekResult = PeekModel.reconcile(root.peekState, sources, {
       nowMs: nowMs,
       targetScreens: targetScreens,
+      readingScreen: root.hubState.expanded ? root.hubState.ownerScreen
+        : root.state.presentation.phase === "expanded" ? root.state.presentation.ownerScreen : "",
       dnd: notificationStore.dnd === true,
       reason: reason || "snapshot"
     })
@@ -333,6 +317,12 @@ Item {
     return true
   }
 
+  DesktopSnapshot {
+    id: downloadStore
+    enabled: !root.fixturesEnabled
+    mode: "downloads"
+    directory: decodeURIComponent(StandardPaths.writableLocation(StandardPaths.DownloadLocation).toString().replace(/^file:\/\//, ""))
+  }
   WeatherStore { id: weatherStore }
   AgentStore {
     id: agentStore
@@ -461,7 +451,6 @@ Item {
         tool: hubState.tool,
         entityKey: hubState.entityKey,
         expanded: hubState.expanded,
-        chooserOpen: hubState.chooserOpen === true,
         ownerScreen: hubState.ownerScreen,
         pendingKey: hubState.pendingRoute ? hubState.pendingRoute.entityKey : "",
         layout: hubState.layout ? {
@@ -510,6 +499,7 @@ Item {
           claimedScreens: root.omapagerAutomaticDisplayClaims.map(function(claim) { return claim.screenName })
         }
       },
+      downloads: { available: downloadStore.snapshot.available, active: downloadStore.snapshot.active.length, recent: downloadStore.snapshot.recent.length },
       codex: {
         providerPresent: root.codexUsage.providerPresent === true,
         available: root.codexUsage.available === true,
@@ -579,6 +569,12 @@ Item {
 
     function status(): string {
       return root.renderStatus()
+    }
+
+    function open(tool: string): bool {
+      if (!root.eligiblePeekScreen(root.focusedScreen) || HubModel.TOOLS.indexOf(tool) < 0) return false
+      if (root.hubState.expanded && root.hubState.tool === tool && root.hubState.ownerScreen === root.focusedScreen) return true
+      return root.openHub(tool, root.focusedScreen)
     }
 
     function agentEvent(event: string): bool {

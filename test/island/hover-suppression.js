@@ -14,7 +14,7 @@ assert.match(widgetSource, /HoverHandler \{[\s\S]*root\.islandBarPointerOver = h
 assert.match(surfaceSource, /function islandWidgets\(\)[\s\S]*moduleWidgets\("luinbytes\.island"\)/)
 assert.match(surfaceSource, /function islandPointerWidget\(widgets\)[\s\S]*islandPointerOver === true/)
 assert.match(surfaceSource, /function islandSuppressionOwner\(widgets\)[\s\S]*islandSuppressionLease === true/)
-assert.match(surfaceSource, /function syncCenterHoverSuppression\(forceRelease\)[\s\S]*centerHoverRevealSuppressed = true/)
+assert.match(surfaceSource, /function syncCenterHoverSuppression\(forceRelease\)[\s\S]*setHoverSuppression\(true\)/)
 assert.match(surfaceSource, /islandSuppressionBaseline = bar\.centerHoverRevealSuppressed === true/)
 assert.match(surfaceSource, /owner\.islandSuppressionLease = false/)
 assert.match(surfaceSource, /bar\.activePopout && widgets\.indexOf\(bar\.activePopout\) < 0/)
@@ -38,14 +38,19 @@ function implementation(name) {
   throw new Error("Unclosed function " + name)
 }
 
-const bar = { centerHoverRevealSuppressed: false, activePopout: null }
+let suppressed = false
+const bar = {
+  activePopout: null,
+  get centerHoverRevealSuppressed() { return suppressed },
+  setCenterHoverRevealSuppressed(value) { suppressed = value }
+}
 const first = { islandPointerOver: false }
 const second = { islandPointerOver: false }
 const context = { bar, anchorItem: first, islandWidgets: () => [first, second],
   centerHoverSettleTimer: { stop() {}, restart() {} } }
 context.root = context
 vm.createContext(context)
-for (const name of ["islandPointerWidget", "islandSuppressionOwner", "settleCenterHoverSuppression", "syncCenterHoverSuppression", "onActivePopoutChanged"])
+for (const name of ["setHoverSuppression", "islandPointerWidget", "islandSuppressionOwner", "settleCenterHoverSuppression", "syncCenterHoverSuppression", "onActivePopoutChanged"])
   vm.runInContext(implementation(name), context)
 const sync = () => context.syncCenterHoverSuppression(false)
 
@@ -75,13 +80,13 @@ bar.activePopout = { id: "weather" }
 context.onActivePopoutChanged()
 assert.equal(first.islandSuppressionLease, false, "the native popout handoff ends the Island lease")
 assert.equal(bar.centerHoverRevealSuppressed, false, "handoff restores before the new panel's deferred suppression")
-bar.centerHoverRevealSuppressed = true
+bar.setCenterHoverRevealSuppressed(true)
 sync()
 first.islandPointerOver = false
 context.settleCenterHoverSuppression(false)
 assert.equal(bar.centerHoverRevealSuppressed, true, "hover leave must preserve the new panel's suppression")
 first.islandPointerOver = true
-bar.centerHoverRevealSuppressed = false
+bar.setCenterHoverRevealSuppressed(false)
 bar.activePopout = null
 context.onActivePopoutChanged()
 assert.equal(first.islandSuppressionLease, true, "closing the foreign popout reacquires stationary Island hover")

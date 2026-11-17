@@ -1,4 +1,4 @@
-var TOOLS = ["music", "weather", "codex", "agents", "notifications", "system"]
+var TOOLS = ["music", "weather", "codex", "agents", "notifications", "system", "downloads"]
 var PAUSE_GRACE_MS = 15000
 var AGENT_TERMINAL_MS = 8000
 
@@ -50,7 +50,7 @@ function title(tool) {
 }
 
 function iconForTool(tool) {
-  return { music: "media", weather: "weather", codex: "codex", agents: "robot", notifications: "bell", system: "CPU" }[tool] || "◦"
+  return { music: "media", weather: "weather", codex: "codex", agents: "robot", notifications: "bell", downloads: "download", system: "CPU" }[tool] || "◦"
 }
 
 function emptySchedule() {
@@ -91,7 +91,6 @@ function initialState() {
     entityKey: "hub:music",
     ownerScreen: "",
     expanded: false,
-    chooserOpen: false,
     pendingRoute: null,
     retainedCard: null,
     layout: null,
@@ -111,14 +110,11 @@ function routeCard(previous, tool, key) {
   return Object.assign({}, selected, { key: key, tool: tool })
 }
 
-function prepareRoute(previous, tool, screen, entityKey, keepChooser) {
+function navigate(previous, tool, screen, entityKey) {
   if (TOOLS.indexOf(tool) < 0 || typeof screen !== "string" || !screen) return previous
   var scheduled = previous && previous.schedule && previous.schedule.byTool ? previous.schedule.byTool[tool] : null
   var key = typeof entityKey === "string" && entityKey ? entityKey : scheduled && scheduled.key ? scheduled.key : "hub:" + tool
-  if (previous.expanded && previous.tool === tool && previous.ownerScreen === screen && previous.entityKey === key) {
-    if (!previous.chooserOpen) return previous
-    return Object.assign({}, previous, { chooserOpen: false, pendingRoute: null, revision: previous.revision + 1 })
-  }
+  if (previous.expanded && previous.tool === tool && previous.ownerScreen === screen && previous.entityKey === key) return previous
   var pending = previous.pendingRoute
   if (pending && pending.tool === tool && pending.ownerScreen === screen && pending.entityKey === key) return previous
   return Object.assign({}, previous, {
@@ -128,34 +124,9 @@ function prepareRoute(previous, tool, screen, entityKey, keepChooser) {
       ownerScreen: screen,
       retainedCard: routeCard(previous, tool, key)
     },
-    chooserOpen: keepChooser === true && previous.chooserOpen === true,
     layoutError: "",
     revision: previous.revision + 1
   })
-}
-
-function navigate(previous, tool, screen, entityKey) {
-  return prepareRoute(previous, tool, screen, entityKey, false)
-}
-
-function toggleChooser(previous, screen) {
-  if (!previous || !previous.expanded || previous.ownerScreen !== screen) return previous
-  var open = previous.chooserOpen !== true
-  return Object.assign({}, previous, {
-    chooserOpen: open,
-    pendingRoute: null,
-    revision: previous.revision + 1
-  })
-}
-
-function closeChooser(previous, screen) {
-  if (!previous || previous.ownerScreen !== screen || previous.chooserOpen !== true) return previous
-  return Object.assign({}, previous, { chooserOpen: false, pendingRoute: null, revision: previous.revision + 1 })
-}
-
-function chooseTool(previous, tool, screen) {
-  if (!previous || previous.chooserOpen !== true || !previous.expanded || previous.ownerScreen !== screen) return previous
-  return prepareRoute(previous, tool, screen, "hub:" + tool, true)
 }
 
 function normalizeLayout(report) {
@@ -189,7 +160,6 @@ function acceptLayout(previous, rawReport) {
     if (pending.ownerScreen !== report.screen || pending.entityKey !== report.key) return previous
     if (report.preferredHeight > report.heightBudget) {
       return Object.assign({}, previous, {
-        chooserOpen: false,
         pendingRoute: null,
         layoutError: "content-too-tall",
         revision: previous.revision + 1
@@ -200,7 +170,6 @@ function acceptLayout(previous, rawReport) {
       entityKey: pending.entityKey,
       ownerScreen: pending.ownerScreen,
       expanded: true,
-      chooserOpen: false,
       pendingRoute: null,
       retainedCard: pending.retainedCard,
       layout: report,
@@ -213,7 +182,6 @@ function acceptLayout(previous, rawReport) {
     return Object.assign({}, previous, {
       ownerScreen: "",
       expanded: false,
-      chooserOpen: false,
       pendingRoute: null,
       layout: null,
       layoutError: "content-too-tall",
@@ -229,7 +197,6 @@ function collapse(previous) {
   return Object.assign({}, previous, {
     ownerScreen: "",
     expanded: false,
-    chooserOpen: false,
     pendingRoute: null,
     layoutError: "",
     revision: previous.revision + 1
@@ -328,7 +295,6 @@ function agentCard(snapshot) {
     if (finite(sessions[index] && sessions[index].changedAt)) semanticRevision = Math.max(semanticRevision, sessions[index].changedAt)
   }
   var result = card("agents", "Agents", value, iconForTool("agents"), semanticRevision)
-  result.secondaryText = blocked ? "Blocked" : attention ? "Approve" : working ? "Working" : snapshot && snapshot.enabled ? "Idle" : "Offline"
   result.minimalValue = attention ? "!" : working ? String(working) : iconForTool("agents")
   return result
 }
@@ -426,22 +392,20 @@ function systemEventCard(event, revision, events) {
   return result
 }
 
-function compactTextFor(card, paired) {
+function compactTextFor(card) {
   if (!card) return ""
   var label = text(card.label)
   var value = text(card.value)
   if (card.tool === "music") return label || "Music"
   if (card.tool === "weather") {
-    if (paired) return value || "Weather"
     if (label && value) return label + " " + value
     return label || value || "Weather"
   }
-  if (card.tool === "agents" && paired) return text(card.secondaryText) || "Agents"
   if (card.tool === "codex" || card.tool === "agents") return value || label
   if (card.tool === "notifications") {
     var app = text(card.notification && card.notification.app)
     var summary = text(card.notification && card.notification.summary)
-    if (paired || !summary) return app || value || label || "Notifications"
+    if (!summary) return app || value || label || "Notifications"
     return app ? app + " · " + summary : value || label || "Notifications"
   }
   if (card.tool === "system") {
@@ -459,11 +423,6 @@ function compactTextFor(card, paired) {
     return resourceLabel && value ? resourceLabel + " " + value.split(" ")[0] : label && value ? label + " " + value : label || value || "System"
   }
   return label || value
-}
-
-function compactCard(card, paired) {
-  if (!card) return null
-  return Object.assign({}, card, { compactText: compactTextFor(card, paired) })
 }
 
 function reconcile(previous, sources, options) {
@@ -489,6 +448,20 @@ function reconcile(previous, sources, options) {
   byTool.agents = agentCard(Object.assign({}, agents, agentCounts))
   byTool.notifications = notificationsToolCard(notifications)
   byTool.system = systemToolCard(system)
+
+  var downloads = input.downloads || {}
+  var transfers = downloads.active || []
+  var recent = downloads.recent || []
+  var transfer = transfers[0] || recent[0]
+  var download = card("downloads", transfer ? transfer.name : "Downloads",
+    transfers.length ? (transfers.length > 1 ? transfers.length + " downloading" : "Downloading")
+    : transfer ? "Downloaded" : "No recent downloads", "download")
+  byTool.downloads = download
+  if (transfers.length) addCandidate(candidates, download, "busy", transfer.started, transfer.started, 0)
+  else if (transfer && nowMs < transfer.completed + 5000) {
+    addCandidate(candidates, download, "terminal", transfer.completed, transfer.completed, 0)
+    nextWakeAt = earlierWake(nextWakeAt, transfer.completed + 5000, nowMs)
+  }
 
   var activities = input.activitiesByKey && typeof input.activitiesByKey === "object" ? input.activitiesByKey : {}
   var activityKeys = Object.keys(activities)
@@ -551,7 +524,6 @@ function reconcile(previous, sources, options) {
     } else if (agentTerminalState) {
       agentsCard = Object.assign({}, agentsCard, {
         value: agentTerminalState.label,
-        secondaryText: agentTerminalState.label === "Turn ended" ? "Ended" : agentTerminalState.label === "Interrupted" ? "Stopped" : "Offline",
         minimalValue: agentTerminalState.icon
       })
       byTool.agents = agentsCard
@@ -578,11 +550,11 @@ function reconcile(previous, sources, options) {
     byTool.system = systemCandidates[0].content
   }
 
-  if (candidates.length === 0 && weather.ready === true && weather.status === "ready"
-      && weather.mode !== "unset" && weather.current) {
-    addCandidate(candidates, byTool.weather, "ambient", weather.fetchedAt, weather.fetchedAt, 0)
-  }
 
+  if (!candidates.length && musicCards.length) {
+    var paused = musicCards[0]
+    addCandidate(candidates, paused.card, "ambient", paused.lifecycle.changedAt, paused.lifecycle.changedAt, 0)
+  }
   for (var toolIndex = 0; toolIndex < TOOLS.length; toolIndex++) byKey["hub:" + TOOLS[toolIndex]] = byTool[TOOLS[toolIndex]]
   candidates.sort(candidateOrder)
   var primary = candidates.length ? candidates[0].content : neutralCard()
@@ -615,8 +587,8 @@ function reconcile(previous, sources, options) {
   return { state: nextState, schedule: schedule, nextWakeAt: nextWakeAt, reason: schedule.reason, changed: true }
 }
 
-function inertRouteCard(route, fallback) {
-  var retained = route && route.retainedCard ? route.retainedCard : fallback
+function inertRouteCard(route) {
+  var retained = route.retainedCard
   var result = Object.assign({}, retained || card(route.tool, title(route.tool), "No longer live", iconForTool(route.tool)), {
     key: route.entityKey,
     tool: route.tool,
@@ -669,7 +641,6 @@ function frameFor(hub, schedule, screenName, metrics, viewModel) {
   var tool = owner ? hub.tool : (committed.primary.tool || "music")
   var primary = committed.primary
   var secondary = committed.secondary
-  var compactPrimary = committed.primary
   var compactSecondary = committed.secondary
   if (owner) {
     var entityKey = text(hub.entityKey) || "hub:" + tool
@@ -680,19 +651,15 @@ function frameFor(hub, schedule, screenName, metrics, viewModel) {
     }, committed)
     secondary = null
   }
-  var phase = owner ? "expanded" : "compact"
+  var phase = owner ? "expanded" : committed.reason === "neutral" ? "idle" : "compact"
   var horizontal = metrics.bar.position === "top" || metrics.bar.position === "bottom"
-  var pairedCompact = !!compactSecondary && horizontal
   if (!owner && horizontal) {
-    primary = compactCard(primary, false)
-    primary.compactCentered = !pairedCompact
-    secondary = compactCard(secondary, pairedCompact)
+    primary = Object.assign({}, primary, { compactText: compactTextFor(primary), compactCentered: !secondary })
   }
-  var geometry = viewModel.geometryFor(phase, !!secondary && !owner, metrics, !!(primary && primary.media), pairedCompact && !owner)
+  var geometry = viewModel.geometryFor(phase, !!secondary, metrics, !!(primary && primary.media))
   var titleCompactRect = null
   if (owner) {
-    var compactGeometry = viewModel.geometryFor("compact", !!compactSecondary, metrics,
-      !!(compactPrimary && compactPrimary.media), pairedCompact)
+    var compactGeometry = viewModel.geometryFor("compact", !!compactSecondary, metrics, false)
     titleCompactRect = compactSecondary && hub.entityKey === compactSecondary.key ? compactGeometry.secondary : compactGeometry.card
   }
   var heightBudget = expandedHeightBudget(metrics)
@@ -716,23 +683,31 @@ function frameFor(hub, schedule, screenName, metrics, viewModel) {
     widthToken: Math.max(1, Math.round(pendingGeometry.card.width)),
     heightBudget: heightBudget
   } : null
+  var splitGeometry = null
+  if (phase === "compact") {
+    var first = geometry.card
+    var bubble = geometry.secondary
+    var gap = Math.min(metrics.gap, 8)
+    if (bubble) gap = horizontal ? bubble.x - first.x - first.width : bubble.y - first.y - first.height
+    splitGeometry = { height: bubble ? bubble.width : Math.min(first.width, first.height),
+      depth: first.height, vertical: !horizontal, gap: gap }
+  }
   return {
     phase: phase,
     alerting: false,
-    primary: primary,
-    secondary: owner ? null : secondary,
+    primary: phase === "idle" ? null : primary,
+    secondary: secondary,
     selected: owner ? primary : null,
     expanded: owner ? primary.expanded : null,
     isOwner: owner,
-    visible: true,
+    visible: phase !== "idle",
     geometry: geometry,
     titleCompactRect: titleCompactRect,
     titleExpandedRect: titleExpandedRect,
     preflight: preflight,
     detailHeightBudget: heightBudget,
     layoutReady: layoutReady,
-    chooserOpen: !!(owner && hub.chooserOpen),
-    splitMinimal: !!secondary && !owner && !pairedCompact
+    splitGeometry: splitGeometry
   }
 }
 
@@ -743,9 +718,6 @@ if (typeof module !== "undefined") module.exports = {
   initialState: initialState,
   emptySchedule: emptySchedule,
   navigate: navigate,
-  toggleChooser: toggleChooser,
-  closeChooser: closeChooser,
-  chooseTool: chooseTool,
   acceptLayout: acceptLayout,
   collapse: collapse,
   reconcile: reconcile,

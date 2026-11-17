@@ -3,7 +3,7 @@ import QtQuick.Shapes
 import Quickshell
 import Quickshell.Hyprland
 import Quickshell.Wayland
-import qs.Commons
+import qs.Commons as Commons
 import "ActivityModel.js" as ActivityModel
 import "ViewModel.js" as ViewModel
 import "HubModel.js" as HubModel
@@ -26,13 +26,17 @@ PanelWindow {
   readonly property var screenMonitor: screen && typeof Hyprland.monitorFor === "function" ? Hyprland.monitorFor(screen) : null
   readonly property bool screenFullscreen: !!screenMonitor && !!screenMonitor.activeWorkspace
     && screenMonitor.activeWorkspace.hasFullscreen === true
+  readonly property var barState: bar && bar.shell ? bar.shell.bar : null
   readonly property bool presenterAvailable: !!anchorItem && anchorItem.visible && anchorItem.width > 0 && anchorItem.height > 0
-    && !!anchorWindow && !!anchorWindow.screen && !(bar && bar.barHidden) && !screenFullscreen
+    && !!anchorWindow && anchorWindow.visible && !!anchorWindow.screen && !(barState ? barState.barHidden : bar && bar.barHidden) && !screenFullscreen
+  readonly property real barThickness: barState && typeof barState.barSizeFor === "function"
+    ? barState.barSizeFor(screenName) : anchorWindow && anchorWindow.thickness !== undefined
+    ? anchorWindow.thickness : bar && bar.barSize ? bar.barSize : 0
   readonly property var activePeekContent: ViewModel.peekContent(service ? service.peekActive : null)
   readonly property var peekMeasurement: {
     var content = root.activePeekContent
     if (!content || !content.key) return { key: "", width: 0, height: 0 }
-    var barSize = root.bar && root.bar.barSize ? Math.max(0, root.bar.barSize) : 0
+    var barSize = root.barThickness
     var horizontal = root.barPosition === "top" || root.barPosition === "bottom"
     var textHeight = peekTitleTextMetrics.boundingRect.height
       + (content.value ? 2 + peekValueTextMetrics.boundingRect.height : 0)
@@ -50,30 +54,18 @@ PanelWindow {
     return {
       screen: { width: screen ? screen.width : 0, height: screen ? screen.height : 0 },
       anchor: { x: anchorScreenPos.x, y: anchorScreenPos.y, width: anchorItem ? anchorItem.width : 0, height: anchorItem ? anchorItem.height : 0 },
-      bar: { position: barPosition, size: bar && bar.barSize ? bar.barSize : 0 },
+      bar: { position: barPosition, size: root.barThickness },
       focusedScreen: service ? service.focusedScreen : "",
       slotWidth: slotWidth,
       compactHeight: Math.min(22, Math.max(12, anchorItem ? anchorItem.height : 22)),
       margin: 8,
       gap: 6,
-      compactPairWidths: root.compactPairWidths,
       peekMeasurement: root.peekMeasurement,
       nowMs: Date.now() + revision * 0
     }
   }
   readonly property var compactSchedule: root.service && typeof root.service.compactScheduleFor === "function"
     ? root.service.compactScheduleFor(root.screenName) : root.service && root.service.hubSchedule ? root.service.hubSchedule : null
-  readonly property var compactPairSource: {
-    var schedule = root.compactSchedule
-    return {
-      primary: schedule ? root.compactCardFor(schedule.primary, false) : null,
-      secondary: schedule && schedule.secondary ? root.compactCardFor(schedule.secondary, true) : null
-    }
-  }
-  readonly property var compactPairWidths: ({
-    primary: root.measureCompactWidth(root.compactPairSource.primary, primaryCompactTextMetrics),
-    secondary: root.measureCompactWidth(root.compactPairSource.secondary, secondaryCompactTextMetrics)
-  })
   readonly property var liveFrame: ViewModel.frameFor(service ? service.state : null, screenName, metrics, ActivityModel.selection)
   readonly property var baseFrame: service && service.hubEntryVisible
     ? HubModel.frameFor(service.hubState, root.compactSchedule, screenName, ViewModel.screenMetrics(metrics), ViewModel)
@@ -84,20 +76,39 @@ PanelWindow {
   readonly property bool hasVisuals: motion.hasVisuals
   readonly property bool unifiedSurface: !!root.service && root.service.hubEntryVisible
   readonly property bool closedPeekPresentation: !!root.peekVisual && root.peekVisual.placement === "closed"
-  readonly property var capsuleOutline: ViewModel.activityOutline(motion.visual.capsule.rect, root.metrics)
+  readonly property var splitShape: motion.visual.split
+  readonly property var primaryRect: root.splitShape ? root.splitShape.primary : motion.visual.capsule.rect
+  readonly property var capsuleOutline: ViewModel.barIslandOutline(root.primaryRect, root.metrics)
+  readonly property var bubbleOutline: ViewModel.plainActivityOutline(root.splitShape ? root.splitShape.bubble : null)
+  readonly property color barBase: bar && bar.background !== undefined ? bar.background : Commons.Color.bar.background
+  readonly property color barInk: bar && bar.barForeground !== undefined ? bar.barForeground : Commons.Color.bar.text
+  readonly property string requestedLook: bar && bar.shell && bar.shell.barConfig
+    ? bar.shell.barConfig.background || (bar.shell.barConfig.transparent ? "none" : "opaque") : "opaque"
+  // The host holds its previous fill until the wallpaper foreground is ready.
+  property bool glassy: false
+  Binding on glassy {
+    when: root.requestedLook !== "none"
+    value: root.requestedLook === "glassy"
+    restoreMode: Binding.RestoreNone
+  }
+  readonly property color capsuleFill: bar && bar.transparent ? "transparent" : root.glassy
+    ? Qt.rgba(barBase.r, barBase.g, barBase.b, Math.min(barBase.a, 0.35)) : barBase
   readonly property var peekVisual: motion.visual.peek
   readonly property var peekOutline: root.closedPeekPresentation ? root.capsuleOutline
-    : ViewModel.attachedPeekOutline(root.peekVisual ? root.peekVisual.rect : null, root.metrics)
+    : ViewModel.plainActivityOutline(root.peekVisual ? root.peekVisual.rect : null)
   readonly property bool peekInputActive: root.presenterAvailable && !!root.frame.peek && !!root.peekVisual && root.peekVisual.visible
+    && root.peekVisual.key === root.frame.peek.content.key && peekContent.contentInteractive
     && !!root.peekOutline && root.peekOutline.contentSafe !== false
   readonly property var firstInputOutline: root.closedPeekPresentation ? root.peekOutline
     : root.unifiedSurface ? root.capsuleOutline : bodyOne.outline
   readonly property bool firstInputContentSafe: !!root.firstInputOutline && root.firstInputOutline.contentSafe !== false
   readonly property bool firstInputActive: root.presenterAvailable && (root.closedPeekPresentation ? root.peekInputActive : root.unifiedSurface
     ? motion.visual.capsule.visible && (bodyOne.interactive || bodyTwo.interactive) : bodyOne.interactive) && root.firstInputContentSafe
-  readonly property var secondInputOutline: root.peekVisual && root.peekVisual.placement === "below" ? root.peekOutline : bodyTwo.outline
+  readonly property var secondInputOutline: root.peekVisual && root.peekVisual.placement === "below" ? root.peekOutline
+    : root.splitShape ? root.bubbleOutline : bodyTwo.outline
   readonly property bool secondInputContentSafe: !!root.secondInputOutline && root.secondInputOutline.contentSafe !== false
   readonly property bool secondInputActive: root.presenterAvailable && (root.peekVisual && root.peekVisual.placement === "below" ? root.peekInputActive
+    : root.splitShape ? !!root.frame.secondary && !!root.splitShape.bubble
     : !root.unifiedSurface && bodyTwo.interactive) && root.secondInputContentSafe
   readonly property var hoverRegion: {
     var first = root.firstInputOutline && root.firstInputOutline.bounds ? root.firstInputOutline.bounds : null
@@ -124,31 +135,10 @@ PanelWindow {
     }
   }
 
-  function compactCardFor(card, paired) {
-    if (!card) return null
-    if (typeof HubModel.compactCard === "function") return HubModel.compactCard(card, paired)
-    return card
-  }
-
-  function compactTextFor(card) {
-    if (!card) return ""
-    if (card.media) return String(card.media.title || "")
-    if (typeof card.compactText === "string" && card.compactText !== "") return card.compactText
-    return String(card.label || card.value || "")
-  }
-
-  function measureCompactWidth(card, metricsItem) {
-    if (!card || !card.key) return 0
-    var textWidth = metricsItem && isFinite(metricsItem.advanceWidth) ? metricsItem.advanceWidth : 0
-    if (card.media) return Math.max(54, Math.ceil(textWidth + 54))
-    var iconWidth = card.icon ? 12 : 0
-    return Math.max(32, Math.ceil(textWidth + iconWidth + (iconWidth > 0 ? 4 : 0) + 8))
-  }
-
   function expandKey(key, reason) {
     if (service && service.hubEntryVisible) {
       var content = frame.secondary && frame.secondary.key === key ? frame.secondary : frame.primary
-      return service.openHub(content ? content.tool : service.hubState.tool, screenName, key)
+      return !!content && content.key === key && service.openHub(content.tool, screenName, key)
     }
     var identity = identityFor(key)
     if (!service || !identity) return false
@@ -182,6 +172,13 @@ PanelWindow {
     return anchorItem && anchorItem.islandSuppressionLease === true ? anchorItem : null
   }
 
+  function setHoverSuppression(value) {
+    if (typeof bar.setCenterHoverRevealSuppressed === "function")
+      bar.setCenterHoverRevealSuppressed(value)
+    else
+      bar.centerHoverRevealSuppressed = value
+  }
+
   function settleCenterHoverSuppression(forceRelease) {
     if (!bar || !("centerHoverRevealSuppressed" in bar)) return
     var widgets = islandWidgets()
@@ -199,7 +196,7 @@ PanelWindow {
       return
     }
     if (owner) {
-      bar.centerHoverRevealSuppressed = owner.islandSuppressionBaseline === true
+      setHoverSuppression(owner.islandSuppressionBaseline === true)
       owner.islandSuppressionLease = false
     }
   }
@@ -220,7 +217,7 @@ PanelWindow {
         hovered.islandSuppressionLease = true
         owner.islandSuppressionLease = false
       }
-      bar.centerHoverRevealSuppressed = true
+      setHoverSuppression(true)
       return
     }
     if (!forceRelease) {
@@ -322,7 +319,7 @@ PanelWindow {
         } : null,
         visible: !!peekVisual && peekVisual.visible === true
       },
-      composition: root.unifiedSurface ? "unified" : "independent",
+      composition: root.splitShape && root.splitShape.bubble ? "split" : root.unifiedSurface ? "islandcn" : "independent",
       surfaceOutline: root.unifiedSurface ? root.capsuleOutline.bounds : null,
       outlines: { primary: outlineFor(bodyOne), secondary: outlineFor(bodyTwo) },
       animation: { primary: motion.unsettled, secondary: motion.unsettled },
@@ -336,7 +333,6 @@ PanelWindow {
       keys: { primary: frame.primary ? frame.primary.key : "", secondary: frame.secondary ? frame.secondary.key : "", selected: frame.selected ? frame.selected.key : "" },
       hubLayout: {
         ready: frame.layoutReady === true,
-        chooserOpen: frame.chooserOpen === true,
         preferredHeight: service && service.hubState && service.hubState.layout ? service.hubState.layout.preferredHeight : 0,
         preflightKey: frame.preflight ? frame.preflight.key : ""
       },
@@ -346,21 +342,28 @@ PanelWindow {
       },
       media: bodyOne.mediaDiagnostic() || bodyTwo.mediaDiagnostic(),
       theme: {
-        fontFamily: Style.font.family,
-        background: String(Color.bar.background),
-        foreground: String(Color.bar.text),
-        accent: String(Color.accent)
+        fontFamily: Commons.Style.font.family,
+        background: String(root.capsuleFill),
+        foreground: String(root.barInk),
+        accent: String(Commons.Color.accent)
       }
     }
   }
 
   screen: anchorWindow ? anchorWindow.screen : null
-  visible: !!screen
+  // Map after the host commits its strip. On the same layer the last mapped
+  // window receives the pointer in the part of the strip the island occupies.
+  visible: false
+  Binding on visible {
+    value: !!root.anchorWindow && root.anchorWindow.visible && !!root.anchorWindow.screen
+    delayed: true
+  }
   color: "transparent"
   exclusionMode: ExclusionMode.Ignore
   anchors { top: true; bottom: true; left: true; right: true }
 
-  WlrLayershell.namespace: "luinbytes-island"
+  // Omarchy scopes its glass blur and alpha cutoff to the bar layer namespace.
+  WlrLayershell.namespace: "omarchy-bar"
   WlrLayershell.layer: WlrLayer.Top
   WlrLayershell.keyboardFocus: presenterAvailable && opened ? (focusPrimed ? WlrKeyboardFocus.OnDemand : WlrKeyboardFocus.Exclusive) : WlrKeyboardFocus.None
 
@@ -371,82 +374,8 @@ PanelWindow {
   }
 
   mask: Region {
-    Region {
-      x: root.firstInputActive ? Math.round(root.firstInputOutline.body.x) : 0
-      y: root.firstInputActive ? Math.round(root.firstInputOutline.body.y) : 0
-      width: root.firstInputActive ? Math.round(root.firstInputOutline.body.width) : 0
-      height: root.firstInputActive ? Math.round(root.firstInputOutline.body.height) : 0
-      topLeftRadius: root.firstInputActive ? Math.round(root.firstInputOutline.body.topLeftRadius) : 0
-      topRightRadius: root.firstInputActive ? Math.round(root.firstInputOutline.body.topRightRadius) : 0
-      bottomRightRadius: root.firstInputActive ? Math.round(root.firstInputOutline.body.bottomRightRadius) : 0
-      bottomLeftRadius: root.firstInputActive ? Math.round(root.firstInputOutline.body.bottomLeftRadius) : 0
-    }
-    Region {
-      x: root.firstInputActive ? Math.round(root.firstInputOutline.shoulders[0].box.x) : 0
-      y: root.firstInputActive ? Math.round(root.firstInputOutline.shoulders[0].box.y) : 0
-      width: root.firstInputActive ? Math.round(root.firstInputOutline.shoulders[0].box.width) : 0
-      height: root.firstInputActive ? Math.round(root.firstInputOutline.shoulders[0].box.height) : 0
-      Region {
-        intersection: Intersection.Subtract
-        shape: RegionShape.Ellipse
-        x: root.firstInputActive ? Math.round(root.firstInputOutline.shoulders[0].cutout.x) : 0
-        y: root.firstInputActive ? Math.round(root.firstInputOutline.shoulders[0].cutout.y) : 0
-        width: root.firstInputActive ? Math.round(root.firstInputOutline.shoulders[0].cutout.width) : 0
-        height: root.firstInputActive ? Math.round(root.firstInputOutline.shoulders[0].cutout.height) : 0
-      }
-    }
-    Region {
-      x: root.firstInputActive ? Math.round(root.firstInputOutline.shoulders[1].box.x) : 0
-      y: root.firstInputActive ? Math.round(root.firstInputOutline.shoulders[1].box.y) : 0
-      width: root.firstInputActive ? Math.round(root.firstInputOutline.shoulders[1].box.width) : 0
-      height: root.firstInputActive ? Math.round(root.firstInputOutline.shoulders[1].box.height) : 0
-      Region {
-        intersection: Intersection.Subtract
-        shape: RegionShape.Ellipse
-        x: root.firstInputActive ? Math.round(root.firstInputOutline.shoulders[1].cutout.x) : 0
-        y: root.firstInputActive ? Math.round(root.firstInputOutline.shoulders[1].cutout.y) : 0
-        width: root.firstInputActive ? Math.round(root.firstInputOutline.shoulders[1].cutout.width) : 0
-        height: root.firstInputActive ? Math.round(root.firstInputOutline.shoulders[1].cutout.height) : 0
-      }
-    }
-    Region {
-      x: root.secondInputActive ? Math.round(root.secondInputOutline.body.x) : 0
-      y: root.secondInputActive ? Math.round(root.secondInputOutline.body.y) : 0
-      width: root.secondInputActive ? Math.round(root.secondInputOutline.body.width) : 0
-      height: root.secondInputActive ? Math.round(root.secondInputOutline.body.height) : 0
-      topLeftRadius: root.secondInputActive ? Math.round(root.secondInputOutline.body.topLeftRadius) : 0
-      topRightRadius: root.secondInputActive ? Math.round(root.secondInputOutline.body.topRightRadius) : 0
-      bottomRightRadius: root.secondInputActive ? Math.round(root.secondInputOutline.body.bottomRightRadius) : 0
-      bottomLeftRadius: root.secondInputActive ? Math.round(root.secondInputOutline.body.bottomLeftRadius) : 0
-    }
-    Region {
-      x: root.secondInputActive ? Math.round(root.secondInputOutline.shoulders[0].box.x) : 0
-      y: root.secondInputActive ? Math.round(root.secondInputOutline.shoulders[0].box.y) : 0
-      width: root.secondInputActive ? Math.round(root.secondInputOutline.shoulders[0].box.width) : 0
-      height: root.secondInputActive ? Math.round(root.secondInputOutline.shoulders[0].box.height) : 0
-      Region {
-        intersection: Intersection.Subtract
-        shape: RegionShape.Ellipse
-        x: root.secondInputActive ? Math.round(root.secondInputOutline.shoulders[0].cutout.x) : 0
-        y: root.secondInputActive ? Math.round(root.secondInputOutline.shoulders[0].cutout.y) : 0
-        width: root.secondInputActive ? Math.round(root.secondInputOutline.shoulders[0].cutout.width) : 0
-        height: root.secondInputActive ? Math.round(root.secondInputOutline.shoulders[0].cutout.height) : 0
-      }
-    }
-    Region {
-      x: root.secondInputActive ? Math.round(root.secondInputOutline.shoulders[1].box.x) : 0
-      y: root.secondInputActive ? Math.round(root.secondInputOutline.shoulders[1].box.y) : 0
-      width: root.secondInputActive ? Math.round(root.secondInputOutline.shoulders[1].box.width) : 0
-      height: root.secondInputActive ? Math.round(root.secondInputOutline.shoulders[1].box.height) : 0
-      Region {
-        intersection: Intersection.Subtract
-        shape: RegionShape.Ellipse
-        x: root.secondInputActive ? Math.round(root.secondInputOutline.shoulders[1].cutout.x) : 0
-        y: root.secondInputActive ? Math.round(root.secondInputOutline.shoulders[1].cutout.y) : 0
-        width: root.secondInputActive ? Math.round(root.secondInputOutline.shoulders[1].cutout.width) : 0
-        height: root.secondInputActive ? Math.round(root.secondInputOutline.shoulders[1].cutout.height) : 0
-      }
-    }
+    OutlineRegion { outline: root.firstInputActive ? root.firstInputOutline : null }
+    OutlineRegion { outline: root.secondInputActive ? root.secondInputOutline : null }
   }
 
   TransformWatcher {
@@ -518,25 +447,9 @@ PanelWindow {
   }
 
   TextMetrics {
-    id: primaryCompactTextMetrics
-    text: root.compactTextFor(root.compactPairSource.primary)
-    font.family: Style.font.family
-    font.pixelSize: root.compactPairSource.primary && root.compactPairSource.primary.media ? 11 : 10
-    font.weight: Font.DemiBold
-  }
-
-  TextMetrics {
-    id: secondaryCompactTextMetrics
-    text: root.compactTextFor(root.compactPairSource.secondary)
-    font.family: Style.font.family
-    font.pixelSize: root.compactPairSource.secondary && root.compactPairSource.secondary.media ? 11 : 10
-    font.weight: Font.DemiBold
-  }
-
-  TextMetrics {
     id: peekTitleTextMetrics
     text: root.activePeekContent ? root.activePeekContent.label || "Activity" : ""
-    font.family: Style.font.family
+    font.family: Commons.Style.font.family
     font.pixelSize: 12
     font.weight: Font.DemiBold
   }
@@ -544,7 +457,7 @@ PanelWindow {
   TextMetrics {
     id: peekValueTextMetrics
     text: root.activePeekContent ? root.activePeekContent.value || "" : ""
-    font.family: Style.font.family
+    font.family: Commons.Style.font.family
     font.pixelSize: 11
     font.weight: Font.Normal
   }
@@ -577,7 +490,7 @@ PanelWindow {
       }
       var owner = root.islandSuppressionOwner(widgets)
       if (!owner) return
-      root.bar.centerHoverRevealSuppressed = owner.islandSuppressionBaseline === true
+      root.setHoverSuppression(owner.islandSuppressionBaseline === true)
       owner.islandSuppressionLease = false
     }
     function onCenterSectionRevealHeldChanged() {
@@ -637,22 +550,79 @@ PanelWindow {
     }
     Keys.onPressed: function(event) {
       if (event.key === Qt.Key_Escape) {
-        if (!root.service || !root.service.closeHubChooser(root.screenName)) root.close("escape")
+        root.close("escape")
         event.accepted = true
       }
     }
 
-    Shape {
-      x: root.capsuleOutline.bounds.x
-      y: root.capsuleOutline.bounds.y
-      width: root.capsuleOutline.bounds.width
-      height: root.capsuleOutline.bounds.height
-      visible: root.unifiedSurface && root.hasVisuals && !root.closedPeekPresentation
-      preferredRendererType: Shape.CurveRenderer
-      ShapePath {
-        fillColor: Color.bar.background
-        strokeWidth: -1
-        PathSvg { path: root.capsuleOutline.perimeter }
+    // The host already paints the strip. Paint only the continuation beyond
+    // its edge, or a translucent theme would get a second coat inside the bar.
+    Item {
+      id: outsideBar
+      anchors.fill: parent
+      anchors.topMargin: root.barPosition === "top" ? root.barThickness : 0
+      anchors.bottomMargin: root.barPosition === "bottom" ? root.barThickness : 0
+      anchors.leftMargin: root.barPosition === "left" ? root.barThickness : 0
+      anchors.rightMargin: root.barPosition === "right" ? root.barThickness : 0
+      clip: true
+
+      Item {
+        id: outsideBarCanvas
+        x: -outsideBar.x
+        y: -outsideBar.y
+        Shape {
+          x: root.capsuleOutline.bounds.x
+          y: root.capsuleOutline.bounds.y
+          width: root.capsuleOutline.bounds.width
+          height: root.capsuleOutline.bounds.height
+          visible: (root.unifiedSurface || root.closedPeekPresentation) && root.hasVisuals
+          preferredRendererType: Shape.CurveRenderer
+          ShapePath {
+            fillColor: root.capsuleFill
+            strokeWidth: -1
+            PathSvg { path: root.capsuleOutline.perimeter }
+          }
+        }
+
+        Shape {
+          x: root.capsuleOutline.bounds.x + (rotation === 90 ? root.capsuleOutline.bounds.width : 0)
+          y: root.capsuleOutline.bounds.y
+          width: rotation === 90 ? motion.visual.capsule.rect.height : motion.visual.capsule.rect.width
+          height: rotation === 90 ? motion.visual.capsule.rect.width : motion.visual.capsule.rect.height
+          transformOrigin: Item.TopLeft
+          rotation: root.splitShape && root.splitShape.vertical ? 90 : 0
+          visible: root.unifiedSurface && !!root.splitShape && !!root.splitShape.bubble
+          preferredRendererType: Shape.CurveRenderer
+          ShapePath {
+            fillColor: root.capsuleFill
+            strokeWidth: -1
+            PathSvg { path: root.splitShape ? root.splitShape.neck : "" }
+          }
+        }
+
+        Rectangle {
+          visible: root.unifiedSurface && !!root.splitShape && !!root.splitShape.bubble
+          x: root.bubbleOutline.body.x
+          y: root.bubbleOutline.body.y
+          width: root.bubbleOutline.body.width
+          height: root.bubbleOutline.body.height
+          radius: Math.min(width, height) / 2
+          color: root.capsuleFill
+        }
+
+        Shape {
+          x: root.peekOutline ? root.peekOutline.bounds.x : 0
+          y: root.peekOutline ? root.peekOutline.bounds.y : 0
+          width: root.peekOutline ? root.peekOutline.bounds.width : 0
+          height: root.peekOutline ? root.peekOutline.bounds.height : 0
+          visible: !!root.peekVisual && root.peekVisual.visible && !root.closedPeekPresentation
+          preferredRendererType: Shape.CurveRenderer
+          ShapePath {
+            fillColor: root.capsuleFill
+            strokeWidth: -1
+            PathSvg { path: root.peekOutline ? root.peekOutline.perimeter : "" }
+          }
+        }
       }
     }
 
@@ -661,33 +631,33 @@ PanelWindow {
       y: root.capsuleOutline.body.y
       width: root.capsuleOutline.body.width
       height: root.capsuleOutline.body.height
-      enabled: root.unifiedSurface && root.firstInputActive && !root.closedPeekPresentation
+      enabled: !root.opened && root.unifiedSurface && root.firstInputActive && !root.closedPeekPresentation
       cursorShape: enabled ? Qt.PointingHandCursor : Qt.ArrowCursor
       onClicked: function(mouse) {
-        if (root.opened) root.close("card-click")
-        else {
-          var key = ViewModel.activityKeyAtPoint(motion.visual.bodies, x + mouse.x, y + mouse.y)
-          if (key) root.expandKey(key, "card")
-        }
+        var key = ViewModel.activityKeyAtPoint(motion.visual.bodies, x + mouse.x, y + mouse.y)
+        if (key) root.expandKey(key, "card")
       }
     }
 
     ActivityVisual {
       id: bodyOne
       visible: !root.closedPeekPresentation
+      backgroundLayer: outsideBarCanvas
       backgroundVisible: !root.unifiedSurface
+      islandSkin: root.unifiedSurface
+      foreground: root.barInk
+      surfaceColor: root.capsuleFill
       service: root.service
       screenName: root.screenName
       visual: motion.visual.bodies[0]
       interactive: !root.closedPeekPresentation && root.frame.visible && drawn && visual.role !== "retiring"
         && outline.contentSafe !== false
       reducedMotion: root.reducedMotion
-      detailHeightBudget: root.frame.detailHeightBudget
+      detailHeightBudget: root.frame.detailHeightBudget || 0
       outlineMetrics: root.metrics
       z: visual && visual.role === "expanded" ? 2 : 1
       onClicked: function(key) {
-        if (root.opened) root.close("card-click")
-        else root.expandKey(key, visual && visual.role === "secondary" ? "secondary" : "card")
+        root.expandKey(key, visual && visual.role === "secondary" ? "secondary" : "card")
       }
       onActionRequested: function(actionId) { root.invoke(actionId) }
       onSeekRequested: function(trackToken, positionSeconds) { root.seek(trackToken, positionSeconds) }
@@ -697,27 +667,44 @@ PanelWindow {
     ActivityVisual {
       id: bodyTwo
       visible: !root.closedPeekPresentation
+      backgroundLayer: outsideBarCanvas
       backgroundVisible: !root.unifiedSurface
+      islandSkin: root.unifiedSurface
+      foreground: root.barInk
+      surfaceColor: root.capsuleFill
       service: root.service
       screenName: root.screenName
       visual: motion.visual.bodies[1]
       interactive: !root.closedPeekPresentation && root.frame.visible && drawn && visual.role !== "retiring"
         && outline.contentSafe !== false
       reducedMotion: root.reducedMotion
-      detailHeightBudget: root.frame.detailHeightBudget
+      detailHeightBudget: root.frame.detailHeightBudget || 0
       outlineMetrics: root.metrics
       z: visual && visual.role === "expanded" ? 2 : 1
       onClicked: function(key) {
-        if (root.opened) root.close("card-click")
-        else root.expandKey(key, visual && visual.role === "secondary" ? "secondary" : "card")
+        root.expandKey(key, visual && visual.role === "secondary" ? "secondary" : "card")
       }
       onActionRequested: function(actionId) { root.invoke(actionId) }
       onSeekRequested: function(trackToken, positionSeconds) { root.seek(trackToken, positionSeconds) }
       onLayoutReported: function(key, widthToken, preferredHeight) { root.reportLayout(key, widthToken, preferredHeight, false) }
     }
 
+    // Expanded controls get first refusal. Unhandled clicks in the original
+    // bar slot still collapse the island.
+    MouseArea {
+      x: root.metrics.anchor.x
+      y: root.metrics.anchor.y
+      width: root.metrics.anchor.width
+      height: root.metrics.anchor.height
+      enabled: root.opened
+      z: 0
+      cursorShape: Qt.PointingHandCursor
+      onClicked: root.close("bar-click")
+    }
+
     PeekContent {
       id: peekContent
+      foreground: root.barInk
       visual: root.peekVisual
       outline: root.peekOutline
       interactive: root.peekInputActive

@@ -100,38 +100,9 @@ assert.ok(two.geometry.secondary.x >= two.geometry.card.x + two.geometry.card.wi
 assert.equal(two.geometry.card.x, 1000, "two-card group starts at the reserved slot")
 assert.equal(two.geometry.secondary.x + two.geometry.secondary.width, 1250, "two-card group ends at the reserved slot")
 assert.ok(two.geometry.card.y >= 0 && two.geometry.card.y + two.geometry.card.height <= 26, "compact card fits the 26px bar")
-const hubPairGeometry = viewModel.geometryFor("compact", true, viewModel.screenMetrics(twoMetrics), false, true)
-assert.equal(hubPairGeometry.card.width, 176, "the primary gets most of the reserved slot")
-assert.equal(hubPairGeometry.secondary.width, 68, "the concurrent activity retains room for its icon and status")
-assert.equal(hubPairGeometry.secondary.x - (hubPairGeometry.card.x + hubPairGeometry.card.width), 6, "a hub pair keeps the native compact gap")
-assert.equal(hubPairGeometry.secondary.x + hubPairGeometry.secondary.width, hubPairGeometry.slot.x + hubPairGeometry.slot.width,
-  "a hub pair fills the existing reserved slot")
-const measuredPairMetrics = metrics("top")
-measuredPairMetrics.compactPairWidths = { primary: 82, secondary: 44 }
-const measuredPair = viewModel.geometryFor("compact", true, viewModel.screenMetrics(measuredPairMetrics), false, true)
-const measuredGroupWidth = measuredPair.card.width + measuredPair.secondary.width + 6
-assert.equal(measuredPair.slot.width, 250, "intrinsic pair sizing preserves the full capsule slot")
-assert.equal(measuredPair.card.width, 82, "the primary body uses its measured intrinsic width")
-assert.equal(measuredPair.secondary.width, 44, "the secondary body uses its measured intrinsic width")
-assert.equal(measuredPair.card.x - measuredPair.slot.x, Math.floor((measuredPair.slot.width - measuredGroupWidth) / 2),
-  "the measured pair is centered as one visual group")
-assert.equal(measuredPair.secondary.x - (measuredPair.card.x + measuredPair.card.width), 6,
-  "the measured pair retains the compact gap")
-assert.ok(measuredPair.secondary.x + measuredPair.secondary.width <= measuredPair.slot.x + measuredPair.slot.width,
-  "the measured pair stays inside the capsule slot")
-const oversizedPairMetrics = metrics("top")
-oversizedPairMetrics.compactPairWidths = { primary: 300, secondary: 180 }
-const oversizedPair = viewModel.geometryFor("compact", true, viewModel.screenMetrics(oversizedPairMetrics), false, true)
-assert.ok(oversizedPair.card.x >= oversizedPair.slot.x, "an oversized primary measurement is bounded to the slot")
-assert.ok(oversizedPair.secondary.x + oversizedPair.secondary.width <= oversizedPair.slot.x + oversizedPair.slot.width,
-  "an oversized secondary measurement is bounded to the slot")
-assert.equal(oversizedPair.secondary.x - (oversizedPair.card.x + oversizedPair.card.width), 6,
-  "bounded intrinsic widths never overlap")
-const longPrimaryPairMetrics = metrics("top")
-longPrimaryPairMetrics.compactPairWidths = { primary: 900, secondary: 68 }
-const longPrimaryPair = viewModel.geometryFor("compact", true, viewModel.screenMetrics(longPrimaryPairMetrics), false, true)
-assert.equal(longPrimaryPair.secondary.width, 68, "a long primary title preserves the measured secondary icon region")
-assert.equal(longPrimaryPair.card.width, 176, "a long primary title receives the remaining bounded width")
+assert.equal(two.geometry.secondary.width, two.geometry.secondary.height, "the split endpoint is a circular activity bubble")
+assert.equal(two.geometry.card.width + two.geometry.secondary.width + 6, two.geometry.slot.width,
+  "the two pills occupy the reserved bar slot")
 
 for (const position of ["top", "bottom", "left", "right"]) {
   const raw = metrics(position)
@@ -250,23 +221,24 @@ assert.equal(expandedTitle.visualWidth, titleIntent.expanded.right - titleIntent
 const constrainedMedia = viewModel.frameFor(state("expanded", "DP-1", mediaActivity), "DP-1", narrow, activityModel.selection)
 const constrainedTitle = viewModel.motionIntentFor(constrainedMedia, narrow).primary.sharedTitle
 assert.equal(viewModel.titleSample(constrainedTitle.expanded.body, constrainedTitle).visualWidth, Math.max(0, constrainedMedia.geometry.card.width - 154), "constrained title reserves the artwork and right-hand controls")
+assert.equal(viewModel.motionIntentFor(two, twoMetrics).splitGeometry, null, "broker fixture pairs use independent bodies")
 const pairedMediaIntent = viewModel.motionIntentFor({
   phase: "compact",
   primary: Object.assign({}, mediaFrame.primary, { compactText: "Night Drive" }),
   secondary: Object.assign({}, mediaFrame.primary, { key: "second-media", compactText: "Night Drive" }),
-  geometry: hubPairGeometry
+  geometry: two.geometry
 }, twoMetrics)
-assert.equal(pairedMediaIntent.primary.sharedTitle.compact.body.width, 176, "primary media title uses its dominant compact body")
-assert.equal(pairedMediaIntent.secondary.sharedTitle.compact.body.width, 68, "secondary media title uses its smaller compact body")
-assert.equal(pairedMediaIntent.secondary.sharedTitle.identity.key, "second-media", "secondary media keeps a meaningful compact title identity")
+assert.equal(pairedMediaIntent.primary.sharedTitle.compact.body.width, 222, "primary media title uses its dominant compact body")
+assert.equal(pairedMediaIntent.secondary.sharedTitle.compact.body.width, 22, "secondary media title uses its smaller compact body")
+assert.equal(pairedMediaIntent.secondary.sharedTitle.identity, null, "secondary media uses artwork inside the bubble")
 const expandedSecondaryIntent = viewModel.motionIntentFor({
   phase: "expanded",
   selected: Object.assign({}, mediaFrame.primary, { key: "second-media", compactText: "Night Drive" }),
-  titleCompactRect: hubPairGeometry.secondary,
+  titleCompactRect: two.geometry.secondary,
   titleExpandedRect: mediaFrame.geometry.card,
   geometry: { card: mediaFrame.geometry.card }
 }, twoMetrics)
-assert.equal(expandedSecondaryIntent.primary.sharedTitle.compact.body.width, 68,
+assert.equal(expandedSecondaryIntent.primary.sharedTitle.compact.body.width, 22,
   "an expanded secondary media card retains its actual compact title endpoint")
 const minimalActivity = { ...mediaActivity, compact: null }
 const minimalMedia = viewModel.frameFor(state("minimal", "", minimalActivity), "DP-1", metrics("top"), activityModel.selection)
@@ -278,7 +250,6 @@ const degenerateTitle = {
   expanded: { body: { x: 5, y: 6, width: 7, height: 8 }, left: 9, right: 10 }
 }
 assert.deepEqual(viewModel.titleSample(degenerateTitle.compact.body, degenerateTitle), { progress: 1, x: 9, visualWidth: 1 }, "zero-length title projections take the requested endpoint without NaN")
-assert.equal(viewModel.titleVelocity({ x: 1, y: 1, width: 1, height: 1 }, degenerateTitle), 0, "zero-length title projections have no synthetic velocity")
 
 const topOutline = viewModel.activityOutline(mediaFrame.geometry.card, metrics("top"))
 assert.equal(topOutline.shoulderRadius, 18, "the settled 306px body receives an 18px shoulder")
@@ -287,11 +258,8 @@ assert.equal(topOutline.bounds.width, mediaFrame.geometry.card.width + 36)
 assert.equal(topOutline.body.topLeftRadius, 0, "the bar-side body corner is square under the connected shoulder")
 assert.equal(topOutline.body.topRightRadius, 0)
 assert.equal(topOutline.body.bottomLeftRadius, 28, "distal body corners retain the common activity radius")
-assert.equal(topOutline.shoulders[0].start.x, mediaFrame.geometry.card.x - 18)
-assert.equal(topOutline.shoulders[0].start.y, 26)
-assert.equal(topOutline.shoulders[0].second.x, mediaFrame.geometry.card.x)
-assert.equal(topOutline.shoulders[0].second.y, 44)
-assert.equal(topOutline.shoulders[0].clockwise, false, "the left top PathArc cuts the reverse corner outward")
+assert.deepEqual(topOutline.shoulders[0].box, { x: mediaFrame.geometry.card.x - 18, y: 26, width: 18, height: 18 })
+assert.deepEqual(topOutline.shoulders[0].cutout, { x: mediaFrame.geometry.card.x - 36, y: 26, width: 36, height: 36 })
 assert.match(topOutline.perimeter, /^M [^\n]+ Z$/, "the outline supplies one closed local SVG perimeter")
 assert.ok((topOutline.perimeter.match(/\b[AC]\b/g) || []).length >= 4,
   "the top outline retains a finite connected perimeter through its shoulders and distal profile")
@@ -304,7 +272,7 @@ for (const position of ["top", "bottom", "left", "right"]) {
   const toolFrame = viewModel.frameFor(state("expanded", "DP-1", activity("shape")), "DP-1", raw, activityModel.selection)
   const outline = viewModel.activityOutline(toolFrame.geometry.card, raw)
   assertFits(outline.bounds, raw)
-  assert.equal(outline.shoulders.filter(item => item.radius > 0).length, 2, position + " outline has two reverse-corner shoulders")
+  assert.equal(outline.shoulders.filter(item => item.box.width > 0).length, 2, position + " outline has two reverse-corner shoulders")
   assert.match(outline.perimeter, /^M [^\n]+ Z$/, position + " outline is one closed perimeter")
   assert.ok((outline.perimeter.match(/\b[AC]\b/g) || []).length >= 4,
     position + " outline retains a finite connected shoulder and distal profile")
@@ -329,6 +297,7 @@ for (const position of ["top", "bottom", "left", "right"]) {
   const closedIntent = viewModel.motionIntentFor(closedPeek, raw)
   assert.equal(closedPeek.phase, "peek", position + " closed event replaces only the presentation frame")
   assert.equal(closedPeek.peek.placement, "closed")
+  assert.equal(closedIntent.splitGeometry, null)
   assert.equal(closedIntent.primary, null, position + " closed peek does not create a hub body")
   assert.equal(closedIntent.secondary, null, position + " closed peek does not occupy a second compact body")
   assert.ok(closedIntent.peek && closedIntent.peek.content.peek, position + " preserves semantic peek content")

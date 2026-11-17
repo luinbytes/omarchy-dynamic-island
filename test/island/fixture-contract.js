@@ -45,11 +45,11 @@ function fixture(drop) {
   } }
 }
 
-for (const scenario of ["compact", "minimal", "two", "alerting", "expanded", "expiry"]) {
+for (const scenario of ["compact", "minimal", "two", "demo", "alerting", "expanded", "expiry"]) {
   assert.match(fixture().ipc[scenario](), /^ISLAND_FIXTURE_PASS/, scenario)
   assert.match(fixture(1).ipc[scenario](), /^ISLAND_FIXTURE_FAIL/, scenario + " dropped publication")
 }
-for (const scenario of ["two", "alerting", "expanded"]) {
+for (const scenario of ["two", "demo", "alerting", "expanded"]) {
   assert.match(fixture(2).ipc[scenario](), /^ISLAND_FIXTURE_FAIL/, scenario + " dropped second command")
 }
 assert.match(fixture().ipc.malformed(), /^ISLAND_FIXTURE_REJECT/)

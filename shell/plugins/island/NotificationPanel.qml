@@ -1,15 +1,16 @@
 pragma ComponentBehavior: Bound
 
 import QtQuick
-import qs.Commons
+import qs.Commons as Commons
 import qs.Ui as Ui
 
 Item {
   id: root
+  property color foregroundColor: Commons.Color.bar.text
 
   required property var store
   property var content: null
-  property real headerRightInset: 32
+  property real headerRightInset: 0
   property int page: 0
   readonly property string contentKey: content && typeof content === "object" ? String(content.key || "") : ""
   readonly property var snapshot: store ? store.snapshot : ({
@@ -54,6 +55,7 @@ Item {
         canInvoke: false,
         canDismiss: false
       })
+      return result
     }
     for (var sourceIndex = 0; sourceIndex < source.length; sourceIndex++) {
       if (source[sourceIndex].key !== selectedKey) result.push(source[sourceIndex])
@@ -122,6 +124,7 @@ Item {
 
     Item {
       width: parent.width
+      visible: !root.contentKey || root.pageCount > 1
       height: 28
 
       Text {
@@ -132,8 +135,8 @@ Item {
         text: "Notifications"
         textFormat: Text.PlainText
         elide: Text.ElideRight
-        color: Color.bar.text
-        font.family: Style.font.family
+        color: root.foregroundColor
+        font.family: Commons.Style.font.family
         font.pixelSize: 15
         font.weight: Font.DemiBold
       }
@@ -150,8 +153,8 @@ Item {
           visible: root.entries.length > 0
           text: (root.page + 1) + "/" + root.pageCount
           textFormat: Text.PlainText
-          color: Color.muted
-          font.family: Style.font.family
+          color: Commons.Color.muted
+          font.family: Commons.Style.font.family
           font.pixelSize: 9
         }
 
@@ -160,7 +163,7 @@ Item {
           width: 26
           height: 24
           radius: height / 2
-          foreground: Color.bar.text
+          foreground: root.foregroundColor
           fontSize: 13
           horizontalPadding: 0
           verticalPadding: 0
@@ -178,7 +181,7 @@ Item {
           width: 26
           height: 24
           radius: height / 2
-          foreground: Color.bar.text
+          foreground: root.foregroundColor
           fontSize: 13
           horizontalPadding: 0
           verticalPadding: 0
@@ -192,11 +195,12 @@ Item {
         }
 
         Ui.Button {
+          visible: !root.contentKey
           text: "↻"
           width: 26
           height: 24
           radius: height / 2
-          foreground: Color.bar.text
+          foreground: root.foregroundColor
           fontSize: 12
           horizontalPadding: 0
           verticalPadding: 0
@@ -218,8 +222,8 @@ Item {
         : "Do Not Disturb · Island previews hidden")
       textFormat: Text.PlainText
       elide: Text.ElideRight
-      color: root.snapshot.error || root.snapshot.dnd ? Color.accent : Color.muted
-      font.family: Style.font.family
+      color: root.snapshot.error || root.snapshot.dnd ? Commons.Color.accent : Commons.Color.muted
+      font.family: Commons.Style.font.family
       font.pixelSize: 9
     }
 
@@ -228,8 +232,8 @@ Item {
       visible: !root.entry
       text: root.snapshot.error ? "No readable notifications" : "No recent notifications"
       textFormat: Text.PlainText
-      color: Color.muted
-      font.family: Style.font.family
+      color: Commons.Color.muted
+      font.family: Commons.Style.font.family
       font.pixelSize: 12
     }
 
@@ -247,8 +251,8 @@ Item {
           text: root.entry ? (root.entry.app || "Notification") : ""
           textFormat: Text.PlainText
           elide: Text.ElideRight
-          color: root.entry && root.entry.urgency === "critical" ? Color.accent : Color.muted
-          font.family: Style.font.family
+          color: root.entry && root.entry.urgency === "critical" ? Commons.Color.accent : Commons.Color.muted
+          font.family: Commons.Style.font.family
           font.pixelSize: 10
         }
 
@@ -256,8 +260,8 @@ Item {
           id: entryTime
           text: root.entry ? root.timeLabel(root.entry.timestamp) : ""
           textFormat: Text.PlainText
-          color: Color.muted
-          font.family: Style.font.family
+          color: Commons.Color.muted
+          font.family: Commons.Style.font.family
           font.pixelSize: 9
         }
       }
@@ -269,8 +273,8 @@ Item {
         wrapMode: Text.WordWrap
         maximumLineCount: 2
         elide: Text.ElideRight
-        color: Color.bar.text
-        font.family: Style.font.family
+        color: root.foregroundColor
+        font.family: Commons.Style.font.family
         font.pixelSize: 16
         font.weight: Font.DemiBold
       }
@@ -281,8 +285,8 @@ Item {
         text: root.pageData ? root.pageData.body : ""
         textFormat: Text.PlainText
         wrapMode: Text.WordWrap
-        color: Color.bar.text
-        font.family: Style.font.family
+        color: root.foregroundColor
+        font.family: Commons.Style.font.family
         font.pixelSize: 11
       }
 
@@ -293,8 +297,8 @@ Item {
           + (root.pageData && root.pageData.bodyPageCount > 1
             ? " · Detail " + (root.pageData.bodyPage + 1) + "/" + root.pageData.bodyPageCount : "")
         textFormat: Text.PlainText
-        color: Color.muted
-        font.family: Style.font.family
+        color: Commons.Color.muted
+        font.family: Commons.Style.font.family
         font.pixelSize: 9
       }
 
@@ -305,7 +309,7 @@ Item {
         Ui.Button {
           text: "Open"
           visible: !!root.entry && root.entry.live && root.entry.canInvoke
-          foreground: Color.bar.text
+          foreground: root.foregroundColor
           fontSize: 9
           focusable: visible
           Accessible.role: Accessible.Button
@@ -318,7 +322,7 @@ Item {
         Ui.Button {
           text: "Dismiss"
           visible: !!root.entry && root.entry.live && root.entry.canDismiss
-          foreground: Color.bar.text
+          foreground: root.foregroundColor
           fontSize: 9
           focusable: visible
           Accessible.role: Accessible.Button
