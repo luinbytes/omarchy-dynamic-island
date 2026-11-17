@@ -593,6 +593,12 @@ Item {
       return root.renderStatus()
     }
 
+    function open(tool: string): bool {
+      if (!root.eligiblePeekScreen(root.focusedScreen) || HubModel.TOOLS.indexOf(tool) < 0) return false
+      if (root.hubState.expanded && root.hubState.tool === tool && root.hubState.ownerScreen === root.focusedScreen && !root.hubState.chooserOpen) return true
+      return root.openHub(tool, root.focusedScreen)
+    }
+
     function agentEvent(event: string): bool {
       return agentStore.ingest(event)
     }

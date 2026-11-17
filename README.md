@@ -147,7 +147,7 @@ Reset peeks require the provider's optional `weekly_reset_at` and `session_reset
 
 ### Browser downloads
 
-Island follows Chromium-family `.crdownload` and Firefox `.part` files in the desktop’s configured Downloads directory. Start a download to see its filename and received size. A rename of the observed partial file marks completion. Removing a partial clears it. Recent completions stay in Downloads for one minute. Files saved directly, private browser temporary directories and custom per-download destinations can fall outside that view. Browsers do not publish a common total-size or pause/resume interface for these files.
+Island follows Chromium-family `.crdownload` and Firefox `.part` files in the desktop’s configured Downloads directory. Start a download to see its filename and received size. Open Downloads from the activity chooser or bind `omarchy-shell luinbytes.island open downloads` to a key. The same command accepts `music` and `notifications`. A rename of the observed partial file marks completion. Removing a partial clears it. Recent completions stay in Downloads for one minute. Files saved directly, private browser temporary directories and custom per-download destinations can fall outside that view. Browsers do not publish a common total-size or pause/resume interface for these files.
 
 ### Notifications and Omapager
 
