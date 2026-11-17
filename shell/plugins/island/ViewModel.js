@@ -354,7 +354,7 @@ function taperAmount(depth) {
   return 1 - progress * progress * (3 - 2 * progress)
 }
 
-function activityOutline(sampledRect, rawMetrics) {
+function activityOutline(sampledRect, rawMetrics, taperAtEdge) {
   var metrics = screenMetrics(rawMetrics)
   var source = sampledRect || {}
   var body = {
@@ -390,7 +390,7 @@ function activityOutline(sampledRect, rawMetrics) {
   var span = horizontal ? body.width : body.height
   var radius = Math.max(0, Math.min(18, outsideSpace, exposedDepth / 2, span / 2))
   var connected = radius > 0.01
-  var taper = connected ? taperAmount(exposedDepth) : 0
+  var taper = connected && taperAtEdge !== false ? taperAmount(exposedDepth) : 0
   var bodyRadius = Math.min(body.radius, body.width / 2, body.height / 2,
     connected ? exposedDepth - radius : Math.max(body.width, body.height))
   var bodyPiece = outlinePiece(body.x, body.y, body.width, body.height,
@@ -479,7 +479,7 @@ function activityOutline(sampledRect, rawMetrics) {
 // A capsule within the strip has four continuous corners. As soon as its
 // lower edge clears the bar, the two inner corners become joined shoulders.
 function barIslandOutline(rect, metrics) {
-  var outline = activityOutline(rect, metrics)
+  var outline = activityOutline(rect, metrics, false)
   return outline.shoulderRadius > 0 ? outline : plainActivityOutline(rect)
 }
 

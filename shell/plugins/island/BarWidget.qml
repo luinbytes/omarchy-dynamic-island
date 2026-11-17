@@ -6,6 +6,10 @@ Ui.BarWidget {
   id: root
 
   moduleName: "luinbytes.island"
+  // The attached panel supplies its own open indication. Quattro rounds a
+  // positive extent to pixels and treats zero as a request for its default.
+  readonly property real openPanelIndicatorWidth: 0.1
+  readonly property real openPanelIndicatorHeight: openPanelIndicatorWidth
   readonly property var service: root.bar && root.bar.shell && typeof root.bar.shell.serviceFor === "function"
     ? root.bar.shell.serviceFor("luinbytes.island") : null
   property var registeredService: null

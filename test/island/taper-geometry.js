@@ -38,3 +38,11 @@ for (const edge of ["top", "bottom", "left", "right"]) {
 }
 
 console.log("rounded-tip bounds, continuity, and four-edge geometry passed")
+
+const joined = require("../../shell/plugins/island/ViewModel.js").barIslandOutline
+for (const height of [23.9, 24, 24.1, 25, 28, 32, 40]) {
+  const outline = joined({x: 835, y: 2, width: 250, height, radius: 11},
+    { screen: { width: 1920, height: 1080 }, bar: { position: "top", size: 26 } })
+  assert.ok(outline.bounds.width >= 250, "opening retains the full compact pill at the bar edge")
+  assert.equal(outline.contentSafe, true, "the compact title remains available through attachment")
+}

@@ -35,7 +35,7 @@ The compact Island follows current activity rather than a pinned tab. Click it f
 
 Important changes use a short live peek without opening the full detail view. If details are already open, the peek appears separately beneath them. Peeks follow each monitor's presenter availability and fullscreen policy.
 
-Peek width follows the longer text line plus its icon and padding, capped to the screen. Closing surfaces narrow into a rounded tip at the bar. Text and hit targets disappear before that narrowing can clip them.
+Peek width follows the longer text line plus its icon and padding, capped to the screen. Opening and closing preserve the compact pill’s width as the panel crosses the bar edge.
 
 ## Install
 
