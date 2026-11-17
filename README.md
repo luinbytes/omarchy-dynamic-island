@@ -33,7 +33,7 @@ The live surface uses islandcn’s split and merge motion. A second activity pin
 
 The compact Island follows current activity rather than a pinned tab. Click it for details, or use the ellipsis to choose another activity. Closing the detail returns to automatic selection. Longer lists use pages instead of scrolling inside the Island.
 
-Important changes use a short live peek without opening the full detail view. If details are already open, the peek appears separately beneath them. Peeks follow each monitor's presenter availability and fullscreen policy.
+Important changes use a short live peek without opening the full detail view. If details are already open, notifications and requests for attention can appear beneath them. Track changes, playback toggles and agent starts or progress update quietly on the screen where you are reading. Peeks follow each monitor's presenter availability and fullscreen policy.
 
 Peek width follows the longer text line plus its icon and padding, capped to the screen. Opening and closing preserve the compact pill’s width as the panel crosses the bar edge.
 

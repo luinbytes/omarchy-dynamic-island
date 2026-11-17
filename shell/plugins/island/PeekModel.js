@@ -604,6 +604,13 @@ function consume(previous, id) {
   return { state: state, active: null, nextWakeAt: nextWakeAt(state), changed: true }
 }
 
+// Routine playback and agent progress already have a home in the open hub.
+function peekRecipients(candidate, screens, readingScreen) {
+  if (!readingScreen || !candidate || (candidate.source !== "media"
+      && candidate.kind !== "agent-working" && candidate.kind !== "agent-started")) return screens
+  return screens.filter(function(screen) { return screen !== readingScreen })
+}
+
 function reconcile(previous, rawSources, rawContext) {
   var prior = previous && previous.sources ? previous : initialState()
   var state = usableState(prior)
@@ -612,7 +619,7 @@ function reconcile(previous, rawSources, rawContext) {
   var context = rawContext && typeof rawContext === "object" ? rawContext : {}
   var nowMs = finite(context.nowMs) && context.nowMs >= 0 ? context.nowMs : 0
   var targetScreens = normalizeTargetScreens(context.targetScreens)
-  state.pending = retainRecipients(state.pending, targetScreens)
+  state.pending = retainRecipients(state.pending, peekRecipients(state.pending && state.pending.candidate, targetScreens, context.readingScreen))
   state.active = retainRecipients(state.active, targetScreens)
   var priorActive = state.active
   advanceTime(state, nowMs)
@@ -649,18 +656,20 @@ function reconcile(previous, rawSources, rawContext) {
   } else {
     var selected = null
     for (var selectIndex = 0; selectIndex < candidates.length; selectIndex++) {
-      selected = betterCandidate(selected, candidates[selectIndex])
+      if (peekRecipients(candidates[selectIndex], targetScreens, context.readingScreen).length)
+        selected = betterCandidate(selected, candidates[selectIndex])
     }
     if (selected) {
+      var recipients = peekRecipients(selected, targetScreens, context.readingScreen)
       if (state.pending) {
         var winner = betterCandidate(state.pending.candidate, selected)
-        if (winner === selected) state.pending.targetScreens = targetScreens.slice()
+        if (winner === selected) state.pending.targetScreens = recipients.slice()
         state.pending.candidate = winner
       } else {
         state.pending = {
           candidate: selected,
           coalesceUntil: nowMs + COALESCE_MS,
-          targetScreens: targetScreens.slice()
+          targetScreens: recipients.slice()
         }
       }
     }

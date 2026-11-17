@@ -416,3 +416,18 @@ state = run(state, {
 assert.equal(state.active, null, "the promoted event cannot replay from unchanged source state")
 
 console.log("peek model semantic policy passed")
+
+{
+  const baseline = run(Peek.initialState(), {agents: agents([])}, 0).state
+  const working = {agents: agents([agent("reader", "working")])}
+  const reading = {readingScreen: "DP-1"}
+  const quiet = run(baseline, working, 100, reading).state
+  assert.equal(quiet.pending, null)
+  assert.equal(run(quiet, working, 300).state.pending, null, "closing does not replay quiet updates")
+  const dual = run(baseline, working, 100, {...reading, targetScreens: ["DP-1", "DP-2"]})
+  assert.deepEqual(dual.state.pending.targetScreens, ["DP-2"])
+  const pending = run(baseline, working, 100).state
+  assert.equal(run(pending, working, 350, reading).active, null)
+  const approval = run(quiet, {agents: agents([agent("reader", "approval-requested")])}, 300, reading)
+  assert.deepEqual(approval.state.pending.targetScreens, ["DP-1"])
+}
