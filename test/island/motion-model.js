@@ -645,3 +645,123 @@ for (const edge of ["top", "bottom", "left", "right"]) {
   assert.deepEqual(frame.capsule.rect, mainBeforeExpiry, edge + " peek expiry leaves main geometry untouched")
 }
 console.log("analytical motion model passed")
+
+const test = require("node:test")
+
+function nativeIntent(edge, primaryKey, secondaryKey, options = {}) {
+  const raw = Object.assign(edgeMetrics(edge), options.metrics)
+  const metrics = viewModel.screenMetrics(raw)
+  const phase = options.expanded ? "expanded" : "compact"
+  const primary = { key: primaryKey, revision: 1 }
+  return viewModel.motionIntentFor({
+    phase, islandSkin: true, primary, selected: primary,
+    secondary: secondaryKey ? { key: secondaryKey, revision: 1 } : null,
+    splitMinimal: !!secondaryKey && (edge === "left" || edge === "right"),
+    geometry: viewModel.geometryFor(phase, !!secondaryKey, metrics, false)
+  }, raw)
+}
+
+test("a visible lobe interrupted during absorption carries position, velocity and ink", () => {
+  for (const t of [0.005, 0.05, 0.2]) {
+    const start = merge(t)
+    const reverse = dt => motion.splitFrame(dt, true, 22, 6, start)
+    assert.equal(reverse(0).ink, start.ink)
+    for (const [edge, velocity] of [["left", "vLeft"], ["right", "vRight"], ["primary", "vPrimary"]]) {
+      assert.equal(reverse(0)[edge], start[edge])
+      const speed = (reverse(0.000001)[edge] - start[edge]) / 0.000001
+      assert.ok(Math.abs(speed - start[velocity]) < 0.02)
+    }
+  }
+  const absorbed = merge(0.25)
+  const restart = motion.splitFrame(0, true, 22, 6, absorbed)
+  assert.equal(restart.right, absorbed.primary)
+  assert.equal(restart.ink, 0)
+})
+
+for (const edge of ["top", "bottom", "left", "right"]) {
+  const one = nativeIntent(edge, "a")
+  const pair = nativeIntent(edge, "a", "b")
+  test(edge + " split starts inside the pill and settles on both keyed targets", () => {
+    let state = motion.reconcile(motion.initialState(), one, true)
+    state = motion.reconcile(state, pair, false)
+    const first = motion.renderFrame(state).split
+    assert.deepEqual(first.primary, one.primary.rect)
+    assert.ok(first.bubble.x >= first.primary.x && first.bubble.y >= first.primary.y)
+    assert.ok(first.bubble.x + first.bubble.width <= first.primary.x + first.primary.width)
+    assert.ok(first.bubble.y + first.bubble.height <= first.primary.y + first.primary.height)
+    const settled = motion.renderFrame(motion.advance(state, 2)).split
+    assert.deepEqual(settled.primary, pair.primary.rect)
+    assert.deepEqual(settled.bubble, pair.secondary.rect)
+  })
+
+  test(edge + " pair swaps roll in place and reverse from the painted offsets", () => {
+    const initial = motion.reconcile(motion.initialState(), pair, true)
+    let state = motion.reconcile(initial, nativeIntent(edge, "b", "a"), false)
+    let frame = motion.renderFrame(state)
+    assert.equal(frame.bodies[0].key, "b")
+    assert.equal(frame.bodies[0].outgoing.content.key, "a")
+    assert.equal(Math.abs(frame.bodies[0].incoming.offsetY), pair.primary.rect.height)
+    state = motion.advance(state, 0.08)
+    const before = motion.renderFrame(state)
+    frame = motion.renderFrame(motion.reconcile(state, pair, false))
+    for (const layer of frame.bodies) {
+      const previous = before.bodies[layer.slot]
+      assert.ok(Math.abs(layer.incoming.offsetY - previous.outgoing.offsetY) < 1e-8)
+      assert.ok(Math.abs(layer.outgoing.offsetY - previous.incoming.offsetY) < 1e-8)
+    }
+  })
+
+  test(edge + " opening a moving bubble retains the painted source of the selected key", () => {
+    let state = motion.reconcile(motion.initialState(), one, true)
+    state = motion.advance(motion.reconcile(state, pair, false), 0.42)
+    const before = motion.renderFrame(state).bodies.find(layer => layer.key === "b")
+    const after = motion.renderFrame(motion.reconcile(state, nativeIntent(edge, "b", null, { expanded: true }), false))
+      .bodies.find(layer => layer.key === "b")
+    assert.equal(after.slot, before.slot)
+    assert.deepEqual(after.outgoing.layout, before.rect)
+    assert.ok(after.outgoing.offsetX >= -1e-8 && after.outgoing.offsetY >= -1e-8)
+    assert.ok(after.outgoing.offsetX + before.rect.width <= after.rect.width + 1e-8)
+    assert.ok(after.outgoing.offsetY + before.rect.height <= after.rect.height + 1e-8)
+    assert.ok(Math.abs(after.rect.x + after.outgoing.offsetX - before.rect.x) < 1e-8)
+    assert.ok(Math.abs(after.rect.y + after.outgoing.offsetY - before.rect.y) < 1e-8)
+  })
+}
+
+test("opening the primary keeps the retiring secondary visible until absorption", () => {
+  const pair = nativeIntent("top", "a", "b")
+  let state = motion.reconcile(motion.initialState(), pair, true)
+  state = motion.reconcile(state, nativeIntent("top", "a", null, { expanded: true }), false)
+  const secondary = dt => motion.renderFrame(motion.advance(state, dt)).bodies.find(layer => layer.key === "b")
+  assert.equal(secondary(0).visible, true)
+  assert.ok(secondary(0.1).opacity > 0 && secondary(0.1).opacity < 1)
+  assert.equal(secondary(0.21).visible, false)
+})
+
+test("relocating a split to a side bar uses that bar's compact footprint", () => {
+  const top = motion.reconcile(motion.initialState(), nativeIntent("top", "a", "b"), true)
+  const side = nativeIntent("right", "a", "b")
+  const first = motion.renderFrame(motion.reconcile(top, side, false))
+  assert.deepEqual(first.split.primary, side.primary.rect)
+  assert.deepEqual(first.split.bubble, side.secondary.rect)
+})
+
+test("constrained slots and thick bars retain the measured split targets through merge", () => {
+  for (const width of [48, 250]) {
+    const metrics = { compactHeight: 30, anchor: { x: 80, y: 0, width, height: 32 } }
+    const pair = nativeIntent("top", "a", "b", { metrics })
+    let state = motion.reconcile(motion.initialState(), pair, true)
+    const settled = motion.renderFrame(state).split
+    assert.deepEqual(settled.primary, pair.primary.rect)
+    assert.deepEqual(settled.bubble, pair.secondary.rect)
+    state = motion.reconcile(state, nativeIntent("top", "a", null, { metrics }), false)
+    assert.deepEqual(motion.renderFrame(state).split, settled)
+  }
+})
+
+test("changing bounds mid-expansion retains an unchanged screen-space target", () => {
+  let state = motion.reconcile(motion.initialState(), nativeIntent("top", "a"), true)
+  const open = nativeIntent("top", "a", null, { expanded: true })
+  state = motion.advance(motion.reconcile(state, open, false), 0.12)
+  state = motion.reconcile(state, { ...open, bounds: { width: 2000, height: 1100 } }, false)
+  assert.equal(Math.round(motion.renderFrame(motion.advance(state, 2)).capsule.rect.height), open.primary.rect.height)
+})

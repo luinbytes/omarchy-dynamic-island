@@ -829,6 +829,9 @@ function motionIntentFor(frame, rawMetrics) {
   var compactPair = !expanded && !!source.secondary && !!secondaryRect
   var capsuleRect = expanded ? primaryRect : compactPair && source.geometry && source.geometry.slot
     ? source.geometry.slot : primaryRect
+  if (source.splitGeometry && compactPair && source.splitGeometry.vertical) {
+    capsuleRect = Object.assign({}, primaryRect, { y: (primaryRect.y + secondaryRect.y) / 2 })
+  }
   return {
     edge: metrics.bar.position,
     bounds: { width: metrics.width, height: metrics.height },

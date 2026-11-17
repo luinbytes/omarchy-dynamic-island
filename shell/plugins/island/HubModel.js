@@ -679,6 +679,15 @@ function frameFor(hub, schedule, screenName, metrics, viewModel) {
     widthToken: Math.max(1, Math.round(pendingGeometry.card.width)),
     heightBudget: heightBudget
   } : null
+  var splitGeometry = null
+  if (phase === "compact") {
+    var first = geometry.card
+    var bubble = geometry.secondary
+    var gap = Math.min(metrics.gap, 8)
+    if (bubble) gap = horizontal ? bubble.x - first.x - first.width : bubble.y - first.y - first.height
+    splitGeometry = { height: bubble ? bubble.width : Math.min(first.width, first.height),
+      depth: first.height, vertical: !horizontal, gap: gap }
+  }
   return {
     phase: phase,
     alerting: false,
@@ -694,8 +703,7 @@ function frameFor(hub, schedule, screenName, metrics, viewModel) {
     preflight: preflight,
     detailHeightBudget: heightBudget,
     layoutReady: layoutReady,
-    splitGeometry: phase !== "compact" ? null : { height: Math.min(geometry.card.width, geometry.card.height),
-      gap: Math.min(metrics.gap, 8), vertical: !horizontal }
+    splitGeometry: splitGeometry
   }
 }
 
