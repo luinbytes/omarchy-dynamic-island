@@ -351,82 +351,8 @@ PanelWindow {
   }
 
   mask: Region {
-    Region {
-      x: root.firstInputActive ? Math.round(root.firstInputOutline.body.x) : 0
-      y: root.firstInputActive ? Math.round(root.firstInputOutline.body.y) : 0
-      width: root.firstInputActive ? Math.round(root.firstInputOutline.body.width) : 0
-      height: root.firstInputActive ? Math.round(root.firstInputOutline.body.height) : 0
-      topLeftRadius: root.firstInputActive ? Math.round(root.firstInputOutline.body.topLeftRadius) : 0
-      topRightRadius: root.firstInputActive ? Math.round(root.firstInputOutline.body.topRightRadius) : 0
-      bottomRightRadius: root.firstInputActive ? Math.round(root.firstInputOutline.body.bottomRightRadius) : 0
-      bottomLeftRadius: root.firstInputActive ? Math.round(root.firstInputOutline.body.bottomLeftRadius) : 0
-    }
-    Region {
-      x: root.firstInputActive ? Math.round(root.firstInputOutline.shoulders[0].box.x) : 0
-      y: root.firstInputActive ? Math.round(root.firstInputOutline.shoulders[0].box.y) : 0
-      width: root.firstInputActive ? Math.round(root.firstInputOutline.shoulders[0].box.width) : 0
-      height: root.firstInputActive ? Math.round(root.firstInputOutline.shoulders[0].box.height) : 0
-      Region {
-        intersection: Intersection.Subtract
-        shape: RegionShape.Ellipse
-        x: root.firstInputActive ? Math.round(root.firstInputOutline.shoulders[0].cutout.x) : 0
-        y: root.firstInputActive ? Math.round(root.firstInputOutline.shoulders[0].cutout.y) : 0
-        width: root.firstInputActive ? Math.round(root.firstInputOutline.shoulders[0].cutout.width) : 0
-        height: root.firstInputActive ? Math.round(root.firstInputOutline.shoulders[0].cutout.height) : 0
-      }
-    }
-    Region {
-      x: root.firstInputActive ? Math.round(root.firstInputOutline.shoulders[1].box.x) : 0
-      y: root.firstInputActive ? Math.round(root.firstInputOutline.shoulders[1].box.y) : 0
-      width: root.firstInputActive ? Math.round(root.firstInputOutline.shoulders[1].box.width) : 0
-      height: root.firstInputActive ? Math.round(root.firstInputOutline.shoulders[1].box.height) : 0
-      Region {
-        intersection: Intersection.Subtract
-        shape: RegionShape.Ellipse
-        x: root.firstInputActive ? Math.round(root.firstInputOutline.shoulders[1].cutout.x) : 0
-        y: root.firstInputActive ? Math.round(root.firstInputOutline.shoulders[1].cutout.y) : 0
-        width: root.firstInputActive ? Math.round(root.firstInputOutline.shoulders[1].cutout.width) : 0
-        height: root.firstInputActive ? Math.round(root.firstInputOutline.shoulders[1].cutout.height) : 0
-      }
-    }
-    Region {
-      x: root.secondInputActive ? Math.round(root.secondInputOutline.body.x) : 0
-      y: root.secondInputActive ? Math.round(root.secondInputOutline.body.y) : 0
-      width: root.secondInputActive ? Math.round(root.secondInputOutline.body.width) : 0
-      height: root.secondInputActive ? Math.round(root.secondInputOutline.body.height) : 0
-      topLeftRadius: root.secondInputActive ? Math.round(root.secondInputOutline.body.topLeftRadius) : 0
-      topRightRadius: root.secondInputActive ? Math.round(root.secondInputOutline.body.topRightRadius) : 0
-      bottomRightRadius: root.secondInputActive ? Math.round(root.secondInputOutline.body.bottomRightRadius) : 0
-      bottomLeftRadius: root.secondInputActive ? Math.round(root.secondInputOutline.body.bottomLeftRadius) : 0
-    }
-    Region {
-      x: root.secondInputActive ? Math.round(root.secondInputOutline.shoulders[0].box.x) : 0
-      y: root.secondInputActive ? Math.round(root.secondInputOutline.shoulders[0].box.y) : 0
-      width: root.secondInputActive ? Math.round(root.secondInputOutline.shoulders[0].box.width) : 0
-      height: root.secondInputActive ? Math.round(root.secondInputOutline.shoulders[0].box.height) : 0
-      Region {
-        intersection: Intersection.Subtract
-        shape: RegionShape.Ellipse
-        x: root.secondInputActive ? Math.round(root.secondInputOutline.shoulders[0].cutout.x) : 0
-        y: root.secondInputActive ? Math.round(root.secondInputOutline.shoulders[0].cutout.y) : 0
-        width: root.secondInputActive ? Math.round(root.secondInputOutline.shoulders[0].cutout.width) : 0
-        height: root.secondInputActive ? Math.round(root.secondInputOutline.shoulders[0].cutout.height) : 0
-      }
-    }
-    Region {
-      x: root.secondInputActive ? Math.round(root.secondInputOutline.shoulders[1].box.x) : 0
-      y: root.secondInputActive ? Math.round(root.secondInputOutline.shoulders[1].box.y) : 0
-      width: root.secondInputActive ? Math.round(root.secondInputOutline.shoulders[1].box.width) : 0
-      height: root.secondInputActive ? Math.round(root.secondInputOutline.shoulders[1].box.height) : 0
-      Region {
-        intersection: Intersection.Subtract
-        shape: RegionShape.Ellipse
-        x: root.secondInputActive ? Math.round(root.secondInputOutline.shoulders[1].cutout.x) : 0
-        y: root.secondInputActive ? Math.round(root.secondInputOutline.shoulders[1].cutout.y) : 0
-        width: root.secondInputActive ? Math.round(root.secondInputOutline.shoulders[1].cutout.width) : 0
-        height: root.secondInputActive ? Math.round(root.secondInputOutline.shoulders[1].cutout.height) : 0
-      }
-    }
+    OutlineRegion { outline: root.firstInputActive ? root.firstInputOutline : null }
+    OutlineRegion { outline: root.secondInputActive ? root.secondInputOutline : null }
   }
 
   TransformWatcher {

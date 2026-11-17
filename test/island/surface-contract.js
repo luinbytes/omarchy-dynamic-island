@@ -73,8 +73,12 @@ assert.match(activityVisualSource, /sharedTitle\.offsetY/,
   "the one shared title consumes its identity handoff displacement")
 assert.match(activityVisualSource, /opacity: root\.visual \? root\.visual\.opacity : 1/,
   "the secondary content follows the split ink sample")
-assert.ok((source.match(/intersection:\s*Intersection\.Subtract/g) || []).length >= 4,
-  "the input mask subtracts the same quarter-circle shoulder cutouts")
+const inputRegion = fs.readFileSync(require.resolve("../../shell/plugins/island/OutlineRegion.qml"), "utf8")
+assert.match(inputRegion, /intersection: Intersection.Subtract\s+shape: RegionShape.Ellipse/,
+  "each shoulder subtracts the painted quarter-circle cutout")
+assert.equal((inputRegion.match(/Shoulder \{ geometry:/g) || []).length, 2, "both shoulders contribute to each input region")
+assert.equal((source.match(/OutlineRegion \{ outline: root\.(first|second)InputActive/g) || []).length, 2,
+  "each active target supplies its own rounded outline")
 assert.match(source, /outlines:\s*\{ primary: outlineFor\(bodyOne\), secondary: outlineFor\(bodyTwo\) \}/,
   "diagnostics expose outline crop bounds without changing physical click rectangles")
 assert.equal((source.match(/outlineMetrics:\s*root\.metrics/g) || []).length, 2,
