@@ -295,7 +295,6 @@ function agentCard(snapshot) {
     if (finite(sessions[index] && sessions[index].changedAt)) semanticRevision = Math.max(semanticRevision, sessions[index].changedAt)
   }
   var result = card("agents", "Agents", value, iconForTool("agents"), semanticRevision)
-  result.secondaryText = blocked ? "Blocked" : attention ? "Approve" : working ? "Working" : snapshot && snapshot.enabled ? "Idle" : "Offline"
   result.minimalValue = attention ? "!" : working ? String(working) : iconForTool("agents")
   return result
 }
@@ -393,22 +392,20 @@ function systemEventCard(event, revision, events) {
   return result
 }
 
-function compactTextFor(card, paired) {
+function compactTextFor(card) {
   if (!card) return ""
   var label = text(card.label)
   var value = text(card.value)
   if (card.tool === "music") return label || "Music"
   if (card.tool === "weather") {
-    if (paired) return value || "Weather"
     if (label && value) return label + " " + value
     return label || value || "Weather"
   }
-  if (card.tool === "agents" && paired) return text(card.secondaryText) || "Agents"
   if (card.tool === "codex" || card.tool === "agents") return value || label
   if (card.tool === "notifications") {
     var app = text(card.notification && card.notification.app)
     var summary = text(card.notification && card.notification.summary)
-    if (paired || !summary) return app || value || label || "Notifications"
+    if (!summary) return app || value || label || "Notifications"
     return app ? app + " · " + summary : value || label || "Notifications"
   }
   if (card.tool === "system") {
@@ -426,11 +423,6 @@ function compactTextFor(card, paired) {
     return resourceLabel && value ? resourceLabel + " " + value.split(" ")[0] : label && value ? label + " " + value : label || value || "System"
   }
   return label || value
-}
-
-function compactCard(card, paired) {
-  if (!card) return null
-  return Object.assign({}, card, { compactText: compactTextFor(card, paired) })
 }
 
 function reconcile(previous, sources, options) {
@@ -532,7 +524,6 @@ function reconcile(previous, sources, options) {
     } else if (agentTerminalState) {
       agentsCard = Object.assign({}, agentsCard, {
         value: agentTerminalState.label,
-        secondaryText: agentTerminalState.label === "Turn ended" ? "Ended" : agentTerminalState.label === "Interrupted" ? "Stopped" : "Offline",
         minimalValue: agentTerminalState.icon
       })
       byTool.agents = agentsCard
@@ -592,8 +583,8 @@ function reconcile(previous, sources, options) {
   return { state: nextState, schedule: schedule, nextWakeAt: nextWakeAt, reason: schedule.reason, changed: true }
 }
 
-function inertRouteCard(route, fallback) {
-  var retained = route && route.retainedCard ? route.retainedCard : fallback
+function inertRouteCard(route) {
+  var retained = route.retainedCard
   var result = Object.assign({}, retained || card(route.tool, title(route.tool), "No longer live", iconForTool(route.tool)), {
     key: route.entityKey,
     tool: route.tool,
@@ -646,7 +637,6 @@ function frameFor(hub, schedule, screenName, metrics, viewModel) {
   var tool = owner ? hub.tool : (committed.primary.tool || "music")
   var primary = committed.primary
   var secondary = committed.secondary
-  var compactPrimary = committed.primary
   var compactSecondary = committed.secondary
   if (owner) {
     var entityKey = text(hub.entityKey) || "hub:" + tool
@@ -659,17 +649,13 @@ function frameFor(hub, schedule, screenName, metrics, viewModel) {
   }
   var phase = owner ? "expanded" : committed.reason === "neutral" ? "idle" : "compact"
   var horizontal = metrics.bar.position === "top" || metrics.bar.position === "bottom"
-  var pairedCompact = !!compactSecondary && horizontal
   if (!owner && horizontal) {
-    primary = compactCard(primary, false)
-    primary.compactCentered = !pairedCompact
-    secondary = compactCard(secondary, pairedCompact)
+    primary = Object.assign({}, primary, { compactText: compactTextFor(primary), compactCentered: !secondary })
   }
-  var geometry = viewModel.geometryFor(phase, !!secondary && !owner, metrics, !!(primary && primary.media))
+  var geometry = viewModel.geometryFor(phase, !!secondary, metrics, !!(primary && primary.media))
   var titleCompactRect = null
   if (owner) {
-    var compactGeometry = viewModel.geometryFor("compact", !!compactSecondary, metrics,
-      !!(compactPrimary && compactPrimary.media))
+    var compactGeometry = viewModel.geometryFor("compact", !!compactSecondary, metrics, false)
     titleCompactRect = compactSecondary && hub.entityKey === compactSecondary.key ? compactGeometry.secondary : compactGeometry.card
   }
   var heightBudget = expandedHeightBudget(metrics)
@@ -697,7 +683,7 @@ function frameFor(hub, schedule, screenName, metrics, viewModel) {
     phase: phase,
     alerting: false,
     primary: phase === "idle" ? null : primary,
-    secondary: owner ? null : secondary,
+    secondary: secondary,
     selected: owner ? primary : null,
     expanded: owner ? primary.expanded : null,
     isOwner: owner,
@@ -708,8 +694,8 @@ function frameFor(hub, schedule, screenName, metrics, viewModel) {
     preflight: preflight,
     detailHeightBudget: heightBudget,
     layoutReady: layoutReady,
-    islandSkin: true,
-    splitMinimal: !!secondary && !owner && !pairedCompact
+    splitGeometry: phase !== "compact" ? null : { height: Math.min(geometry.card.width, geometry.card.height),
+      gap: Math.min(metrics.gap, 8), vertical: !horizontal }
   }
 }
 

@@ -221,6 +221,7 @@ assert.equal(expandedTitle.visualWidth, titleIntent.expanded.right - titleIntent
 const constrainedMedia = viewModel.frameFor(state("expanded", "DP-1", mediaActivity), "DP-1", narrow, activityModel.selection)
 const constrainedTitle = viewModel.motionIntentFor(constrainedMedia, narrow).primary.sharedTitle
 assert.equal(viewModel.titleSample(constrainedTitle.expanded.body, constrainedTitle).visualWidth, Math.max(0, constrainedMedia.geometry.card.width - 154), "constrained title reserves the artwork and right-hand controls")
+assert.equal(viewModel.motionIntentFor(two, twoMetrics).splitGeometry, null, "broker fixture pairs use independent bodies")
 const pairedMediaIntent = viewModel.motionIntentFor({
   phase: "compact",
   primary: Object.assign({}, mediaFrame.primary, { compactText: "Night Drive" }),
@@ -249,7 +250,6 @@ const degenerateTitle = {
   expanded: { body: { x: 5, y: 6, width: 7, height: 8 }, left: 9, right: 10 }
 }
 assert.deepEqual(viewModel.titleSample(degenerateTitle.compact.body, degenerateTitle), { progress: 1, x: 9, visualWidth: 1 }, "zero-length title projections take the requested endpoint without NaN")
-assert.equal(viewModel.titleVelocity({ x: 1, y: 1, width: 1, height: 1 }, degenerateTitle), 0, "zero-length title projections have no synthetic velocity")
 
 const topOutline = viewModel.activityOutline(mediaFrame.geometry.card, metrics("top"))
 assert.equal(topOutline.shoulderRadius, 18, "the settled 306px body receives an 18px shoulder")
@@ -258,11 +258,8 @@ assert.equal(topOutline.bounds.width, mediaFrame.geometry.card.width + 36)
 assert.equal(topOutline.body.topLeftRadius, 0, "the bar-side body corner is square under the connected shoulder")
 assert.equal(topOutline.body.topRightRadius, 0)
 assert.equal(topOutline.body.bottomLeftRadius, 28, "distal body corners retain the common activity radius")
-assert.equal(topOutline.shoulders[0].start.x, mediaFrame.geometry.card.x - 18)
-assert.equal(topOutline.shoulders[0].start.y, 26)
-assert.equal(topOutline.shoulders[0].second.x, mediaFrame.geometry.card.x)
-assert.equal(topOutline.shoulders[0].second.y, 44)
-assert.equal(topOutline.shoulders[0].clockwise, false, "the left top PathArc cuts the reverse corner outward")
+assert.deepEqual(topOutline.shoulders[0].box, { x: mediaFrame.geometry.card.x - 18, y: 26, width: 18, height: 18 })
+assert.deepEqual(topOutline.shoulders[0].cutout, { x: mediaFrame.geometry.card.x - 36, y: 26, width: 36, height: 36 })
 assert.match(topOutline.perimeter, /^M [^\n]+ Z$/, "the outline supplies one closed local SVG perimeter")
 assert.ok((topOutline.perimeter.match(/\b[AC]\b/g) || []).length >= 4,
   "the top outline retains a finite connected perimeter through its shoulders and distal profile")
@@ -275,7 +272,7 @@ for (const position of ["top", "bottom", "left", "right"]) {
   const toolFrame = viewModel.frameFor(state("expanded", "DP-1", activity("shape")), "DP-1", raw, activityModel.selection)
   const outline = viewModel.activityOutline(toolFrame.geometry.card, raw)
   assertFits(outline.bounds, raw)
-  assert.equal(outline.shoulders.filter(item => item.radius > 0).length, 2, position + " outline has two reverse-corner shoulders")
+  assert.equal(outline.shoulders.filter(item => item.box.width > 0).length, 2, position + " outline has two reverse-corner shoulders")
   assert.match(outline.perimeter, /^M [^\n]+ Z$/, position + " outline is one closed perimeter")
   assert.ok((outline.perimeter.match(/\b[AC]\b/g) || []).length >= 4,
     position + " outline retains a finite connected shoulder and distal profile")
@@ -300,6 +297,7 @@ for (const position of ["top", "bottom", "left", "right"]) {
   const closedIntent = viewModel.motionIntentFor(closedPeek, raw)
   assert.equal(closedPeek.phase, "peek", position + " closed event replaces only the presentation frame")
   assert.equal(closedPeek.peek.placement, "closed")
+  assert.equal(closedIntent.splitGeometry, null)
   assert.equal(closedIntent.primary, null, position + " closed peek does not create a hub body")
   assert.equal(closedIntent.secondary, null, position + " closed peek does not occupy a second compact body")
   assert.ok(closedIntent.peek && closedIntent.peek.content.peek, position + " preserves semantic peek content")

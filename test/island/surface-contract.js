@@ -35,8 +35,6 @@ assert.match(source, /PathSvg \{ path: root\.capsuleOutline\.perimeter \}/,
   "the capsule outline drives the unified fill")
 assert.match(source, /firstInputOutline: root\.closedPeekPresentation \? root\.peekOutline\s+: root\.unifiedSurface \? root\.capsuleOutline : bodyOne\.outline/,
   "closed peeks use their capsule perimeter while the shared hub input stays persistent")
-assert.doesNotMatch(source, /combinedActivityOutline\(motion\.visual\.bodies/,
-  "retiring content regions cannot resize the unified input or fill outline")
 assert.match(source, /ViewModel\.activityKeyAtPoint\(motion\.visual\.bodies, x \+ mouse\.x, y \+ mouse\.y\)/,
   "the internal space routes to a real sampled activity key")
 assert.doesNotMatch(activityVisualSource, /id:\s*shoulderShape|root\.outline\.shoulders\[index\]/,

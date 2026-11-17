@@ -7,11 +7,15 @@ const require = createRequire(import.meta.url)
 const motion = require("../shell/plugins/island/MotionModel.js")
 const directory = path.dirname(fileURLToPath(import.meta.url))
 const historicalReference = path.resolve(directory, "../test/island/apple-motion-reference.json")
-const expected = { expansion: [0.387, 0.792], collapse: [0.479, 0.894] }
+// Unit-step samples from the pinned islandcn solveSpring, at 100 and 200 ms.
+const expected = {
+  expansion: { response: 0.387, dampingFraction: 0.792, progress: [0.5485980318, 0.9397347429] },
+  collapse: { response: 0.479, dampingFraction: 0.894, progress: [0.3999610676, 0.7866801669] }
+}
 
 if (!fs.existsSync(historicalReference)) throw new Error("Historical Apple comparison data is missing")
 const results = Object.keys(expected).map(direction => {
-  const [response, dampingFraction] = expected[direction]
+  const { response, dampingFraction, progress } = expected[direction]
   const omega = 2 * Math.PI / response
   const profile = motion.PROFILES[direction]
   const samples = [0.1, 0.2].map(seconds => ({
@@ -20,7 +24,7 @@ const results = Object.keys(expected).map(direction => {
   }))
   const pass = Number.isFinite(profile.omega) && Number.isFinite(profile.zeta)
     && Math.abs(profile.omega - omega) < 0.000001 && profile.zeta === dampingFraction
-    && samples.every(sample => Number.isFinite(sample.progress) && sample.progress > 0 && sample.progress <= 1.02)
+    && samples.every((sample, index) => Math.abs(sample.progress - progress[index]) < 1e-8)
   return { direction, omega: profile.omega, zeta: profile.zeta, samples, pass }
 })
 

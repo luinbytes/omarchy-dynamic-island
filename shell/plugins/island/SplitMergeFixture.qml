@@ -15,13 +15,15 @@ Window {
   color: "#24262b"
 
   property real elapsed: 0
+  property alias reducedMotion: reduced.checked
   readonly property int leadIn: 850
   readonly property int mergeAt: 2650
   readonly property int cycle: 4550
   readonly property bool splitting: elapsed < mergeAt
   readonly property real seconds: Math.max(0, elapsed - (splitting ? leadIn : mergeAt)) / 1000
-  readonly property var pose: Motion.splitFrame(reduced.checked ? (splitting && elapsed < leadIn ? 0 : 2) : seconds,
-                                          splitting, Motion.splitGeometry.height, Motion.splitGeometry.gap)
+  readonly property var pose: Motion.splitFrame(
+    elapsed < leadIn || reducedMotion ? Motion.splitTiming.settle : seconds,
+    elapsed >= leadIn && splitting, Motion.splitGeometry.height, Motion.splitGeometry.gap)
   function replay() {
     playback.restart()
   }

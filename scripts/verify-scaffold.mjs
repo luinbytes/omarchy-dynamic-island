@@ -52,6 +52,8 @@ const requiredFiles = [
   "shell/plugins/island/MediaContent.qml",
   "shell/plugins/island/ActivityBroker.qml",
   "shell/plugins/island/IslandFixture.qml",
+  "shell/plugins/island/SplitMergeFixture.qml",
+  "shell/plugins/island/islandcn-LICENSE",
   "shell/plugins/island/FixtureChecks.js",
   "test/island/activity-model-cases.js",
   "test/island/view-model.js",
@@ -78,13 +80,14 @@ const requiredFiles = [
   "test/island/omapager-handoff.js",
   "test/island/taper-geometry.js",
   "test/island/peek-width.js",
-  "test/island/combined-outline.js",
+  "test/island/activity-hit-testing.js",
   "test/island/theme-contract.js",
   "test/island/surface-contract.js",
   "test/island/run-activity-model.js",
   "test/island/manifest-contract.js",
   "test/island/plugin-contract.js",
-  "test/island/fixture-contract.js"
+  "test/island/fixture-contract.js",
+  "test/island/tst_splitmerge.qml"
 ]
 
 function fail(message) {
@@ -130,7 +133,7 @@ if (run(process.execPath, ["test/island/media-projection.js"])) console.log("ok 
 if (run(process.execPath, ["test/island/media-publisher.js"])) console.log("ok - media publisher contract")
 if (run(process.execPath, ["test/island/media-content.js"])) console.log("ok - media content contract")
 if (run(process.execPath, ["test/island/shared-title.js"])) console.log("ok - shared title motion")
-if (run(process.execPath, ["test/island/combined-outline.js"])) console.log("ok - unified activity outline")
+if (run(process.execPath, ["test/island/activity-hit-testing.js"])) console.log("ok - activity hit testing")
 if (run(process.execPath, ["test/island/hub-model.js"])) console.log("ok - hub workflow regressions")
 if (run(process.execPath, ["test/island/codex-model.js"])) console.log("ok - direct Codex usage integration")
 if (run(process.execPath, ["test/island/codex-peek.js"])) console.log("ok - Codex usage peek thresholds")
@@ -163,6 +166,13 @@ if (run(process.execPath, ["test/island/surface-contract.js"])) console.log("ok 
 if (run(process.execPath, ["test/island/manifest-contract.js"])) console.log("ok - manifest contract")
 if (run(process.execPath, ["test/island/plugin-contract.js"])) console.log("ok - plugin contract")
 if (run(process.execPath, ["test/island/fixture-contract.js"])) console.log("ok - fixture contract")
+
+const qtTestRunner = "/usr/lib/qt6/bin/qmltestrunner"
+if (fs.existsSync(qtTestRunner)) {
+  if (run(qtTestRunner, ["-platform", "offscreen", "-input", "test/island/tst_splitmerge.qml"])) console.log("ok - Qt split/merge preview")
+} else {
+  console.log("skip - Qt 6 fixture runner is unavailable")
+}
 
 if (upstream) {
   const upstreamGit = spawnSync("git", ["-C", upstream, "rev-parse", "HEAD"], { encoding: "utf8" })

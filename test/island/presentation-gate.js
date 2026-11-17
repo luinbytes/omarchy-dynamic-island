@@ -4,7 +4,7 @@ const Gate = require("../../shell/plugins/island/PresentationGateModel.js")
 
 function schedule(title, icon, artUrl) {
   const media = { title, artist: "Artist", artUrl, trackToken: title + "|1" }
-  const primary = { key: "hub:music", label: title, icon, media, compactText: title }
+  const primary = { key: "hub:music", tool: "music", label: title, icon, media }
   const secondary = { key: "hub:agents", label: "Agents", icon: "robot", value: "Working" }
   return {
     primary,

@@ -123,21 +123,21 @@ const compactSources = {
 const compactResult = Hub.reconcile(Hub.initialState(), compactSources, { nowMs: 3000 })
 const compactFrame = Hub.frameFor(compactResult.state, compactResult.schedule, "monitor", metrics, View)
 assert.equal(compactFrame.primary.compactText, "3 blocked procs", "a process pair keeps its count and noun")
-assert.equal(compactFrame.secondary.compactText, "Discord", "a notification pair keeps the app name")
+assert.equal(compactFrame.secondary.minimalValue, "•", "the notification bubble carries its minimal indicator")
 assert.equal(compactFrame.primary.key, blocked[0].key, "the system card keeps the exact selected process key")
 assert.equal(compactFrame.secondary.key, "notification:live", "the notification card keeps the exact selected key")
 assert.equal(compactFrame.geometry.card.width, 222, "hub primary takes the larger share")
 assert.equal(compactFrame.geometry.secondary.width, 22, "the secondary uses the bar-height icon bubble")
 assert.equal(compactFrame.geometry.secondary.x - (compactFrame.geometry.card.x + compactFrame.geometry.card.width), 6,
   "hub compact cards keep the existing gap")
-assert.equal(compactFrame.splitMinimal, false, "a labelled hub pair never takes the minimal renderer")
-assert.equal(compactFrame.primary.compactCentered, false, "paired activities retain their independent aligned lanes")
+assert.equal(View.motionIntentFor(compactFrame, { bar: metrics.bar }).primary.role, "primary", "the horizontal primary keeps its compact label")
+assert.equal(compactFrame.primary.compactCentered, false, "the horizontal primary keeps its leading alignment beside the bubble")
 const agentPair = Hub.frameFor(compactResult.state, Object.assign({}, compactResult.schedule, {
   primary: compactResult.schedule.byTool.weather,
   secondary: compactResult.schedule.byTool.agents
 }), "monitor", metrics, View)
 assert.equal(agentPair.secondary.icon, "robot", "the short agent presentation retains its semantic robot identity")
-assert.equal(agentPair.secondary.compactText, "Working", "the small secondary explains its live status rather than showing a bare count")
+assert.equal(agentPair.secondary.minimalValue, "1", "the agent bubble carries the working count")
 assert.equal(agentPair.secondary.value, "1 agent working", "the full activity record retains the working count")
 assert.equal(agentPair.geometry.secondary.width, agentPair.geometry.secondary.height, "the second activity fits a round bubble")
 const blockedSchedule = Object.assign({}, compactResult.schedule, {
@@ -185,7 +185,7 @@ const sideMetrics = View.screenMetrics({
   bar: { position: "left", size: 26 }
 })
 const sideFrame = Hub.frameFor(compactResult.state, compactResult.schedule, "monitor", sideMetrics, View)
-assert.equal(sideFrame.splitMinimal, true, "vertical bars retain their existing minimal renderer")
+assert.equal(View.motionIntentFor(sideFrame, { bar: sideMetrics.bar }).primary.role, "minimal", "vertical bars retain their existing minimal renderer")
 assert.equal(sideFrame.secondary.compactText, undefined, "vertical secondary cards do not opt into horizontal text")
 const criticalResult = Hub.reconcile(Hub.initialState(), Object.assign({}, compactSources, {
   notifications: Object.assign({}, compactSources.notifications, {

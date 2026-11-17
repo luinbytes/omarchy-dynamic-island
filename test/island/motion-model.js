@@ -251,10 +251,11 @@ for (const edge of ["top", "bottom", "left", "right"]) {
     edge + " settled expanded content uses its capsule-local origin")
 }
 
-const pairLeft = { x: 250, y: 0, width: 176, height: 22, radius: 11 }
-const pairRight = { x: 432, y: 0, width: 68, height: 22, radius: 11 }
+const { card: pairLeft, secondary: pairRight } = viewModel.geometryFor("compact", true,
+  viewModel.screenMetrics(edgeMetrics("top")), false)
 function pairIntent(primaryKey, secondaryKey) {
-  return intent(body(primaryKey, pairLeft, "primary"), body(secondaryKey, pairRight, "secondary"))
+  return intent(body(primaryKey, pairLeft, "primary"), body(secondaryKey, pairRight, "secondary"),
+    { bounds: edgeMetrics("top").screen })
 }
 function pairOverlap(first, second) {
   return Math.max(0, Math.min(first.x + first.width, second.x + second.width) - Math.max(first.x, second.x))
@@ -423,14 +424,13 @@ state = motion.reconcile(state, intent(mediaBody("media", mediaExpanded, "expand
 state = motion.advance(state, 0.12)
 visual = motion.renderFrame(state).bodies[0]
 const titlePositionBeforeReverse = viewModel.titleSample(visual.rect, visual.sharedTitle)
-const titleVelocityBeforeReverse = viewModel.titleVelocity(visual.rectVelocity, visual.sharedTitle)
-assert.notEqual(titleVelocityBeforeReverse, 0, "midflight shared title has body-derived velocity")
+const velocityBeforeReverse = { ...visual.rectVelocity }
+assert.notEqual(velocityBeforeReverse.height, 0, "midflight title-bearing body has height velocity")
 state = motion.reconcile(state, intent(mediaBody("media", mediaCompact, "primary", "track-a", "Night Drive")), false)
 visual = motion.renderFrame(state).bodies[0]
 const titlePositionAfterReverse = viewModel.titleSample(visual.rect, visual.sharedTitle)
-const titleVelocityAfterReverse = viewModel.titleVelocity(visual.rectVelocity, visual.sharedTitle)
 assert.equal(titlePositionAfterReverse.x, titlePositionBeforeReverse.x, "shared title position samples the unchanged reversal pose")
-assert.equal(titleVelocityAfterReverse, titleVelocityBeforeReverse, "shared title velocity follows the retained body velocity")
+assert.deepEqual(visual.rectVelocity, velocityBeforeReverse, "reversal retains velocity on every body axis used to position the title")
 const detailBeforeTitleUpdate = visual.outgoing
 state = motion.reconcile(state, intent(mediaBody("media", mediaCompact, "primary", "track-a", "Corrected Title")), false)
 visual = motion.renderFrame(state).bodies[0]

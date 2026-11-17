@@ -29,9 +29,6 @@ Item {
   readonly property var outline: islandSkin ? ViewModel.barIslandOutline(rect, outlineMetrics) : ViewModel.activityOutline(rect, outlineMetrics)
   readonly property bool contentSafe: !root.outline || root.outline.contentSafe !== false
   readonly property var sharedTitle: root.visual && root.visual.sharedTitle ? root.visual.sharedTitle : null
-  readonly property bool secondaryUsesCompactText: !root.islandSkin && !!root.visual && root.visual.role === "secondary"
-    && !!root.visual.incoming && !!root.visual.incoming.content && typeof root.visual.incoming.content.compactText === "string"
-    && root.visual.incoming.content.compactText !== ""
   readonly property var sharedTitleSample: root.sharedTitle && root.sharedTitle.present
     ? ViewModel.titleSample(root.visual && root.visual.titleSampleRect ? root.visual.titleSampleRect : root.rect, root.sharedTitle)
     : ({ progress: 0, x: 0, visualWidth: 0 })
@@ -203,7 +200,7 @@ Item {
       mediaTitleOwnedByBody: !!root.sharedTitle && root.sharedTitle.owned === true
       mediaArtworkOwnedByBody: root.sharedArtworkOwned
       visible: (!content || !content.hub) && !(root.visual && (root.visual.role === "minimal"
-        || (root.visual.role === "secondary" && !root.secondaryUsesCompactText)))
+        || root.visual.role === "secondary"))
       onActionRequested: function(actionId) { root.actionRequested(actionId) }
       onSeekRequested: function(trackToken, positionSeconds) { root.seekRequested(trackToken, positionSeconds) }
     }
@@ -236,7 +233,7 @@ Item {
       anchors.fill: parent
       visible: !!root.visual && !(root.sharedArtworkOwned && root.visual.incoming && root.visual.incoming.content.media)
         && (root.visual.role === "minimal"
-        || (root.visual.role === "secondary" && !root.secondaryUsesCompactText))
+        || root.visual.role === "secondary")
       Image {
         id: minimalArt
         anchors.centerIn: parent
