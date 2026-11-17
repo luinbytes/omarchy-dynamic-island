@@ -59,6 +59,13 @@ assert.match(activityVisualSource, /sharedTitle\.offsetY/,
   "the one shared title consumes its identity handoff displacement")
 assert.match(activityVisualSource, /opacity: root\.visual \? root\.visual\.opacity : 1/,
   "the secondary content follows the split ink sample")
+const closeSlot = source.match(/MouseArea \{[^{}]*onClicked: root\.close\("bar-click"\)[^{}]*\}/)
+assert.ok(closeSlot, "the original bar slot remains a close target")
+const closeZ = Number(closeSlot[0].match(/\bz: (\d+)/)[1])
+const expandedZ = [...source.matchAll(/z: visual && visual\.role === "expanded" \? (\d+)/g)]
+assert.equal(expandedZ.length, 2)
+assert.ok(expandedZ.every(match => Number(match[1]) > closeZ),
+  "expanded controls on either activity receive clicks before the bar-slot fallback")
 const inputRegion = fs.readFileSync(require.resolve("../../shell/plugins/island/OutlineRegion.qml"), "utf8")
 assert.match(inputRegion, /intersection: Intersection.Subtract\s+shape: RegionShape.Ellipse/,
   "each shoulder subtracts the painted quarter-circle cutout")

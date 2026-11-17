@@ -689,15 +689,15 @@ PanelWindow {
       onLayoutReported: function(key, widthToken, preferredHeight) { root.reportLayout(key, widthToken, preferredHeight, false) }
     }
 
-    // Keep the original bar slot as the toggle. Detail text and panel padding
-    // should tolerate a click while someone is reading or aiming at a control.
+    // Expanded controls get first refusal. Unhandled clicks in the original
+    // bar slot still collapse the island.
     MouseArea {
       x: root.metrics.anchor.x
       y: root.metrics.anchor.y
       width: root.metrics.anchor.width
       height: root.metrics.anchor.height
       enabled: root.opened
-      z: 3
+      z: 0
       cursorShape: Qt.PointingHandCursor
       onClicked: root.close("bar-click")
     }
