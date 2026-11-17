@@ -1,6 +1,97 @@
+// Compact split/unsplit port from islandcn, copyright (c) 2026 Leo.
+// See islandcn-LICENSE. Coordinates are logical pixels in the desktop bar slot.
+var splitTiming = {
+  split: { response: 0.505, damping: 0.815, turn: 0.215 },
+  merge: { response: 0.487, damping: 0.794, turn: 0.203 },
+  pinch: { response: 0.376, damping: 0.811, delay: 0.345 },
+  closeGap: { response: 0.25, damping: 1 },
+  slide: { response: 0.42, damping: 1 },
+  absorb: 0.205,
+  settle: 1.5
+}
+var splitGeometry = { width: 250, height: 22, gap: 6, neckReach: 5, spread: 0.3, handle: 2.4 }
+
+
+// Relative to the trailing edge of a single compact pill. This lets a moving
+// or resized bar keep its current screen anchor throughout the transition.
+function splitFrame(seconds, splitting, height, gap, start) {
+  var h = height, spread = h + gap
+  if (seconds >= splitTiming.settle) {
+    return { primary: splitting ? -spread : 0, left: splitting ? -h : -spread - h,
+      right: 0, vPrimary: 0, vLeft: 0, vRight: 0, bubble: splitting, ink: splitting ? 1 : 0 }
+  }
+  var idle = -spread - h
+  var edges = splitting ? splitTiming.split : splitTiming.merge
+  var initial = start || (splitting
+    ? { primary: 0, left: idle, right: 0, ink: 0 }
+    : { primary: -spread, left: -h, right: 0, ink: 1 })
+  function spring(from, velocity, to, profile, time) {
+    return sampleSpring(from, velocity || 0, to, 2 * Math.PI / profile.response, profile.damping, Math.max(0, time))
+  }
+  function edge(from, velocity, to) {
+    var first = spring(from, velocity, idle, edges, Math.min(seconds, edges.turn))
+    return seconds <= edges.turn ? first
+      : spring(first.value, first.velocity, to, edges, seconds - edges.turn)
+  }
+  var primary = edge(initial.primary, initial.vPrimary, splitting ? -spread : 0)
+  var right = splitting ? edge(initial.right, initial.vRight, 0)
+    : spring(initial.right, initial.vRight, idle, splitTiming.slide, seconds)
+  var left = splitting
+    ? spring(initial.left, initial.vLeft, -h, splitTiming.pinch, seconds - splitTiming.pinch.delay)
+    : spring(initial.left, initial.vLeft, idle - h, splitTiming.closeGap, seconds)
+  var ink = splitting ? Math.max(initial.ink, clamp((left.value - idle) / spread, 0, 1))
+    : initial.ink * Math.max(0, 1 - seconds / splitTiming.absorb)
+  return { primary: primary.value, left: left.value, right: right.value,
+    vPrimary: primary.velocity, vLeft: left.velocity, vRight: right.velocity,
+    bubble: splitting || seconds < splitTiming.absorb, ink: ink }
+}
+
+function updateSplit(state, source, reducedMotion) {
+  var old = state.split
+  var dims = source.splitGeometry
+  // Keep the departing lobe through the first frames of a horizontal expansion.
+  if (!dims && old && !old.vertical && source.primary && source.primary.expanded) dims = old
+  if (!dims) {
+    state.split = null
+    return
+  }
+  var splitting = !!source.secondary
+  if (!old && !splitting) return
+  if (!old || old.splitting !== splitting) {
+    var current = old ? splitFrame(old.time, old.splitting, old.height, old.gap, old.start) : null
+    state.split = { splitting: splitting, time: 0, height: dims.height, gap: dims.gap, start: current }
+  }
+  state.split.vertical = !!dims.vertical
+  state.split.height = dims.height
+  state.split.gap = dims.gap
+  if (reducedMotion) {
+    if (splitting) state.split.time = splitTiming.settle
+    else state.split = null
+  }
+}
+
+// For two horizontal caps of equal radius, the bottom half mirrors the top.
+function neckPath(primary, left, height) {
+  var r = height / 2
+  var distance = left + r - (primary - r)
+  var gap = distance - 2 * r
+  if (distance <= 0 || gap >= splitGeometry.neckReach) return ""
+  var spread = splitGeometry.spread * Math.pow(1 - Math.max(0, gap) / splitGeometry.neckReach, 1.5)
+  var overlap = Math.acos(Math.min(1, distance / (2 * r)))
+  var angle = overlap + (Math.PI / 2 - overlap) * spread
+  var x1 = primary - r + r * Math.cos(angle)
+  var x2 = left + r - r * Math.cos(angle)
+  var dy = r * Math.sin(angle)
+  var handle = r * Math.min(spread * splitGeometry.handle, Math.abs(x2 - x1) / (2 * r)) * Math.min(1, distance / r)
+  var dx = handle * Math.sin(angle), cy = handle * Math.cos(angle)
+  var top = r - dy, bottom = r + dy
+  return ["M", x1, top, "C", x1 + dx, top + cy, x2 - dx, top + cy, x2, top,
+    "L", x2, bottom, "C", x2 - dx, bottom - cy, x1 + dx, bottom - cy, x1, bottom, "Z"].join(" ")
+}
+
 var PROFILES = {
-  expansion: { omega: Math.PI * 2 / 0.32, zeta: 0.88 },
-  collapse: { omega: Math.PI * 2 / 0.32, zeta: 0.88 },
+  expansion: { omega: Math.PI * 2 / 0.387, zeta: 0.792 },
+  collapse: { omega: Math.PI * 2 / 0.479, zeta: 0.894 },
   compact: { omega: 18, zeta: 1 },
   content: { omega: 10, zeta: 1 }
 }
@@ -307,8 +398,8 @@ function poseWithVelocity(rect, velocity, edge, bounds) {
   return result
 }
 
-function rebaseBody(body, oldEdge, oldBounds, nextEdge, nextBounds) {
-  if (!body.key || !body.pose) return
+function rebasePose(body, oldEdge, oldBounds, nextEdge, nextBounds) {
+  if (!body || !body.pose) return
   if (oldEdge === nextEdge && oldBounds.width === nextBounds.width && oldBounds.height === nextBounds.height) return
   var currentRect = rectForPose(body.pose, oldEdge, oldBounds)
   var currentVelocity = rectVelocityForPose(body.pose, oldEdge)
@@ -324,32 +415,13 @@ function rebaseBody(body, oldEdge, oldBounds, nextEdge, nextBounds) {
     if (Math.abs(converted[name].value - bounded[name].value) > 0.01) bounded[name].velocity = 0
   }
   body.pose = bounded
-  body.lastCompact = null
+  if (body.key) body.lastCompact = null
   var target = poseValues(bounded)
   var velocityOrder = ["span", "depth", "cross", "near"]
   for (var velocityIndex = 0; velocityIndex < velocityOrder.length; velocityIndex++) {
     if (pathFits(body, target, nextEdge, nextBounds, PROFILES.expansion)) break
     body.pose[velocityOrder[velocityIndex]].velocity = 0
   }
-}
-
-function rebaseCapsule(capsule, oldEdge, oldBounds, nextEdge, nextBounds) {
-  if (!capsule || !capsule.pose) return
-  if (oldEdge === nextEdge && oldBounds.width === nextBounds.width && oldBounds.height === nextBounds.height) return
-  var currentRect = rectForPose(capsule.pose, oldEdge, oldBounds)
-  var currentVelocity = rectVelocityForPose(capsule.pose, oldEdge)
-  var converted = poseWithVelocity(currentRect, currentVelocity, nextEdge, nextBounds)
-  var boundedRect = clampRect(currentRect, nextBounds)
-  var bounded = poseWithVelocity(boundedRect, currentVelocity, nextEdge, nextBounds)
-  bounded.radius.velocity = capsule.pose.radius.velocity
-  var axes = ["cross", "near", "span", "depth", "radius"]
-  for (var index = 0; index < axes.length; index++) {
-    var name = axes[index]
-    bounded[name].omega = capsule.pose[name].omega
-    bounded[name].zeta = capsule.pose[name].zeta
-    if (Math.abs(converted[name].value - bounded[name].value) > 0.01) bounded[name].velocity = 0
-  }
-  capsule.pose = bounded
 }
 
 function createCapsule() {
@@ -542,8 +614,8 @@ function setCapsuleTarget(capsule, desired, edge, bounds, reducedMotion) {
   var previousMode = capsule.mode
   var token = capsuleToken(desired)
   var sameTarget = !!capsule.transition && capsule.transition.token === token
-  var outerProfile = desired.profile === "expansion" || previousMode === "expanded"
-    ? PROFILES.expansion : profile(desired.profile)
+  var outerProfile = previousMode === "expanded" && desired.mode !== "expanded"
+    ? PROFILES.collapse : profile(desired.profile)
   var targetPose = targetValues(makePose(desired.rect, edge, bounds, outerProfile))
   if (!capsule.pose) {
     capsule.pose = makePose(clampRect(desired.rect, bounds), edge, bounds, outerProfile)
@@ -1010,9 +1082,9 @@ function reconcile(previous, intent, reducedMotion) {
   }
   if (!state.capsule) state.capsule = createCapsule()
   if (!state.peek) state.peek = createPeek()
-  rebaseCapsule(state.capsule, state.edge, state.bounds, nextEdge, nextBounds)
+  rebasePose(state.capsule, state.edge, state.bounds, nextEdge, nextBounds)
   for (var rebaseIndex = 0; rebaseIndex < state.bodies.length; rebaseIndex++) {
-    rebaseBody(state.bodies[rebaseIndex], state.edge, state.bounds, nextEdge, nextBounds)
+    rebasePose(state.bodies[rebaseIndex], state.edge, state.bounds, nextEdge, nextBounds)
   }
   state.edge = nextEdge
   state.bounds = nextBounds
@@ -1022,6 +1094,7 @@ function reconcile(previous, intent, reducedMotion) {
     ? rectForPose(state.capsule.pose, state.edge, state.bounds) : null
   setPeekTarget(state.peek, source.peek, sampledCapsuleRect, state.edge, state.bounds,
     capsuleProgress(state.capsule, state.edge, state.bounds), reducedMotion)
+  updateSplit(state, source, reducedMotion)
   var capsule = desiredCapsule(source)
   if (closedPeek && capsule && state.peek.contentRect) capsule = Object.assign({}, capsule, { rect: state.peek.contentRect })
   if (capsule) setCapsuleTarget(state.capsule, capsule, state.edge, state.bounds, reducedMotion)
@@ -1185,10 +1258,14 @@ function advance(previous, seconds) {
         && capsuleProgress(state.capsule, state.edge, state.bounds) >= 0.999) state.peek.placementTransition = null
     if (!state.peek.present && settledAxis(state.peek.reveal)) state.peek = createPeek()
   }
+  if (state.split) {
+    state.split.time = Math.min(splitTiming.settle, state.split.time + delta)
+    if (!state.split.splitting && state.split.time >= splitTiming.settle) state.split = null
+  }
   if (state.alerting && state.mapped) state.pulseSeconds += delta
   state.mapped = state.bodies.some(function(body) { return !!body.key }) || !!state.peek.content
   state.unsettled = state.alerting && state.mapped
-  if (!capsuleSettled(state.capsule)) state.unsettled = true
+  if ((state.split && state.split.time < splitTiming.settle) || !capsuleSettled(state.capsule)) state.unsettled = true
   for (var bodyIndex = 0; bodyIndex < state.bodies.length; bodyIndex++) {
     if (!bodySettled(state.bodies[bodyIndex])) state.unsettled = true
   }
@@ -1201,6 +1278,7 @@ function advance(previous, seconds) {
 function clear(previous) {
   var state = copy(previous || initialState())
   state.capsule = createCapsule()
+  state.split = null
   state.bodies = [createBody(0), createBody(1)]
   state.peek = createPeek()
   state.mapped = false
@@ -1235,7 +1313,7 @@ function layerOffset(surfaceRect, layout) {
 }
 
 function renderBody(body, capsule, edge, bounds, alerting, pulse) {
-  if (!body.key || !body.pose) return { visible: false, slot: body.slot }
+  if (!body.key || !body.pose) return { visible: false, slot: body.slot, opacity: 0 }
   var regionRect = rectForPose(body.pose, edge, bounds)
   var capsuleRect = capsule && capsule.pose ? rectForPose(capsule.pose, edge, bounds) : regionRect
   var regionUsesCapsule = usesCapsule(body, capsule)
@@ -1415,20 +1493,66 @@ function renderFrame(state) {
   var capsule = source.capsule || createCapsule()
   var peek = source.peek || createPeek()
   var pulse = source.alerting ? 0.2 + 0.7 * (0.5 + 0.5 * Math.sin(source.pulseSeconds * Math.PI * 2 / 0.72)) : 0
+  var outer = renderCapsule(capsule, source.edge, source.bounds, source.mapped)
+  var bodies = source.bodies.map(function(body) {
+    return renderBody(body, capsule, source.edge, source.bounds, source.alerting, pulse)
+  })
+  var split = source.split
+  var shape = null
+  if (split) {
+    var pose = splitFrame(split.time, split.splitting, split.height, split.gap, split.start)
+    var rect = outer.rect
+    var diameter = split.height
+    var bubbleSpan = Math.max(diameter, pose.right - pose.left)
+    var primary = copyRect(rect)
+    var bubble
+    var neck
+    if (split.vertical) {
+      // Centre the pair along the side bar as the lower bubble moves out.
+      var endY = rect.y + (rect.height + diameter - pose.primary) / 2
+      primary.y = endY + pose.primary - diameter
+      primary.height = diameter
+      primary.radius = diameter / 2
+      bubble = { x: rect.x, y: endY + pose.left, width: rect.width, height: bubbleSpan, radius: diameter / 2 }
+      neck = neckPath(diameter, bubble.y - primary.y, diameter)
+    } else {
+      primary.width = Math.max(Math.min(diameter, rect.width), rect.width + pose.primary)
+      bubble = { x: rect.x + rect.width + pose.left,
+        y: source.edge === "bottom" ? rect.y + rect.height - diameter : rect.y,
+        width: bubbleSpan, height: diameter, radius: diameter / 2 }
+      neck = rect.height <= diameter + 1 ? neckPath(primary.width, bubble.x - rect.x, diameter) : ""
+    }
+    shape = { primary: primary, bubble: pose.bubble ? bubble : null, vertical: split.vertical,
+      neck: pose.bubble ? neck : "" }
+    for (var index = 0; index < bodies.length; index++) {
+      var layer = bodies[index]
+      if (!layer.visible) continue
+      var secondary = layer.role === "secondary" || layer.role === "retiring"
+      layer.rect = secondary ? bubble : primary
+      if (!layer.incoming || !layer.incoming.expanded) layer.titleSampleRect = layer.rect
+      layer.opacity = secondary ? pose.ink : 1
+      layer.visible = !secondary || pose.bubble
+      if (layer.incoming && !layer.incoming.expanded) {
+        layer.incoming.layout = layer.rect
+        layer.incoming.offsetX = 0
+        layer.incoming.offsetY = 0
+      }
+    }
+  }
   return {
     mapped: !!source.mapped,
     unsettled: !!source.unsettled,
-    capsule: renderCapsule(capsule, source.edge, source.bounds, source.mapped),
-    bodies: [
-      renderBody(source.bodies[0], capsule, source.edge, source.bounds, source.alerting, pulse),
-      renderBody(source.bodies[1], capsule, source.edge, source.bounds, source.alerting, pulse)
-    ],
+    capsule: outer,
+    split: shape,
+    bodies: bodies,
     peek: renderPeek(peek, capsule, source.edge, source.bounds)
   }
 }
 
 if (typeof module !== "undefined") {
   module.exports = {
+    splitFrame: splitFrame,
+    neckPath: neckPath,
     PROFILES: PROFILES,
     sampleSpring: sampleSpring,
     advanceAxis: advanceAxis,

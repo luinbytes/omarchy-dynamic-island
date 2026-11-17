@@ -86,6 +86,12 @@ Item {
     function onCommandRejected(reason) { root.lastRejection = reason }
   }
 
+  Loader {
+    id: splitPreview
+    active: false
+    sourceComponent: Component { SplitMergeFixture {} }
+  }
+
   IpcHandler {
     target: "omarchy-island-fixture"
 
@@ -160,6 +166,14 @@ Item {
     function malformed(): string {
       root.reset()
       return root.dispatch({ type: "publish", activity: { source: "", id: "bad" } }, null, true)
+    }
+
+    function splitMerge(): string {
+      splitPreview.active = true
+      splitPreview.item.show()
+      splitPreview.item.raise()
+      splitPreview.item.replay()
+      return "ISLAND_FIXTURE_PASS state=split-merge-preview"
     }
 
     function demo(): string {

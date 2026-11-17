@@ -102,8 +102,6 @@ const surface = fs.readFileSync(require.resolve("../../shell/plugins/island/Isla
 const service = fs.readFileSync(require.resolve("../../shell/plugins/island/Service.qml"), "utf8")
 assert.match(surface, /compactScheduleFor\(root\.screenName\)/,
   "the surface asks Service for one per-screen compact presentation schedule")
-assert.match(surface, /compactPairSource:[\s\S]*compactSchedule/,
-  "compact text measurement uses the gated schedule")
 assert.match(surface, /HubModel\.frameFor\(service\.hubState, root\.compactSchedule,/,
   "the compact frame uses the same gated schedule")
 assert.match(service, /PeekModel\.reconcile[\s\S]*HubModel\.reconcile/,

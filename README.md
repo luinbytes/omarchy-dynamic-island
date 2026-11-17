@@ -29,6 +29,8 @@ Native captures from Omarchy with sample notification text and the installed sys
 | Weather | Current conditions and forecasts after you choose a city or opt into automatic location. |
 | System | Sustained CPU, memory, GPU, and resource-pressure observations. No process control or zombie-process alerts. |
 
+The live surface uses islandcn’s split and merge motion. A second activity pinches off into a small bubble. Clicking either activity opens its details. The bar paints the compact background itself. As the Island opens, its shoulders extend past the bar edge using the bar’s current color and opacity, including during theme changes. Glassy mode shares Omarchy’s bar blur rule.
+
 The compact Island follows current activity rather than a pinned tab. Click it for details, or use the ellipsis to choose another activity. Closing the detail returns to automatic selection. Longer lists use pages instead of scrolling inside the Island.
 
 Important changes use a short live peek without opening the full detail view. If details are already open, the peek appears separately beneath them. Peeks follow each monitor's presenter availability and fullscreen policy.
@@ -173,6 +175,14 @@ The status output can contain activity metadata. Redact it before sharing public
 For playback troubleshooting, compare `media.active` with `hub.schedule.primaryTool` and `hub.schedule.secondaryTool`. An active media publisher only confirms that MPRIS supplied a track; the hub also needs an accepted activity. `widgets` and `peekTargetScreens` show whether the bar has a live Island presenter. When using a custom build, check the manifest's `entryPoints` before updating or reloading: the running shell may not be using files from your checkout.
 
 Portable tests check models and package contracts. They do not prove QML startup, rendered motion, input behavior, or visual parity. Native QA must inspect the running shell. Some dynamic QML types produce static lint warnings, and startup visibility warnings remain under investigation.
+
+To preview the split and merge in a standalone Qt window, run this from the checkout:
+
+```bash
+qml6 shell/plugins/island/SplitMergeFixture.qml
+```
+
+The 250 × 22 bar fixture loops through music playing, a download arriving, and the download finishing. Use **Replay** or **Reduced motion** to compare. In a disposable shell with fixtures enabled, the `omarchy-island-fixture splitMerge` IPC method opens the same preview. Motion is adapted from [islandcn](https://github.com/opencoredev/islandcn/tree/0011a41ea4882f3818caf35c98f3ee46b80c4a2c/lib/island) under its [MIT license](shell/plugins/island/islandcn-LICENSE).
 
 Fixtures are for disposable sessions, not your normal desktop. Native checks must cover notification arrival and expiry, playback changes, opening and closing details, multiple monitors, and fullscreen transitions.
 

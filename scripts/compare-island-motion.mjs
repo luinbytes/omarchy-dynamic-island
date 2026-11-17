@@ -7,13 +7,12 @@ const require = createRequire(import.meta.url)
 const motion = require("../shell/plugins/island/MotionModel.js")
 const directory = path.dirname(fileURLToPath(import.meta.url))
 const historicalReference = path.resolve(directory, "../test/island/apple-motion-reference.json")
-const responseSeconds = 0.32
-const dampingFraction = 0.88
-const omega = Math.PI * 2 / responseSeconds
-const directions = ["expansion", "collapse"]
+const expected = { expansion: [0.387, 0.792], collapse: [0.479, 0.894] }
 
 if (!fs.existsSync(historicalReference)) throw new Error("Historical Apple comparison data is missing")
-const results = directions.map(direction => {
+const results = Object.keys(expected).map(direction => {
+  const [response, dampingFraction] = expected[direction]
+  const omega = 2 * Math.PI / response
   const profile = motion.PROFILES[direction]
   const samples = [0.1, 0.2].map(seconds => ({
     seconds,
@@ -26,8 +25,8 @@ const results = directions.map(direction => {
 })
 
 console.log(JSON.stringify({
-  scope: "Nootch source contract. The outer panel spring uses response 0.32 seconds and damping 0.88. This is an analytical Qt translation, not captured macOS parity.",
-  source: "https://github.com/DeepanshuMishraa/nootch/blob/main/Sources/Nootch/NotchPanel.swift",
+  scope: "Native spring samples for manual expansion and collapse.",
+  source: "https://github.com/opencoredev/islandcn/blob/0011a41ea4882f3818caf35c98f3ee46b80c4a2c/lib/island/motion.ts",
   historicalAppleComparison: {
     path: "test/island/apple-motion-reference.json",
     preserved: true,

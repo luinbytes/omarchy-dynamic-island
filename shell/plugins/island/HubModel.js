@@ -688,11 +688,11 @@ function frameFor(hub, schedule, screenName, metrics, viewModel) {
     primary.compactCentered = !pairedCompact
     secondary = compactCard(secondary, pairedCompact)
   }
-  var geometry = viewModel.geometryFor(phase, !!secondary && !owner, metrics, !!(primary && primary.media), pairedCompact && !owner)
+  var geometry = viewModel.geometryFor(phase, !!secondary && !owner, metrics, !!(primary && primary.media))
   var titleCompactRect = null
   if (owner) {
     var compactGeometry = viewModel.geometryFor("compact", !!compactSecondary, metrics,
-      !!(compactPrimary && compactPrimary.media), pairedCompact)
+      !!(compactPrimary && compactPrimary.media))
     titleCompactRect = compactSecondary && hub.entityKey === compactSecondary.key ? compactGeometry.secondary : compactGeometry.card
   }
   var heightBudget = expandedHeightBudget(metrics)
@@ -732,6 +732,7 @@ function frameFor(hub, schedule, screenName, metrics, viewModel) {
     detailHeightBudget: heightBudget,
     layoutReady: layoutReady,
     chooserOpen: !!(owner && hub.chooserOpen),
+    islandSkin: true,
     splitMinimal: !!secondary && !owner && !pairedCompact
   }
 }

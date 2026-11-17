@@ -8,6 +8,9 @@ Item {
   id: root
 
   property var visual: null
+  property bool islandSkin: false
+  property color foreground: Color.bar.text
+  property color surfaceColor: Color.bar.background
   property bool interactive: false
   property bool backgroundVisible: true
   property bool reducedMotion: false
@@ -22,10 +25,10 @@ Item {
 
   readonly property bool drawn: !!visual && visual.visible
   readonly property var rect: drawn ? visual.rect : ({ x: 0, y: 0, width: 0, height: 0, radius: 0 })
-  readonly property var outline: ViewModel.activityOutline(rect, outlineMetrics)
+  readonly property var outline: islandSkin ? ViewModel.barIslandOutline(rect, outlineMetrics) : ViewModel.activityOutline(rect, outlineMetrics)
   readonly property bool contentSafe: !root.outline || root.outline.contentSafe !== false
   readonly property var sharedTitle: root.visual && root.visual.sharedTitle ? root.visual.sharedTitle : null
-  readonly property bool secondaryUsesCompactText: !!root.visual && root.visual.role === "secondary"
+  readonly property bool secondaryUsesCompactText: !root.islandSkin && !!root.visual && root.visual.role === "secondary"
     && !!root.visual.incoming && !!root.visual.incoming.content && typeof root.visual.incoming.content.compactText === "string"
     && root.visual.incoming.content.compactText !== ""
   readonly property bool hubNavigationInteractive: root.interactive && !!root.service && !!root.service.hubState
@@ -96,7 +99,7 @@ Item {
   width: outline.bounds.width
   height: outline.bounds.height
   visible: drawn && width > 0 && height > 0
-  opacity: 1
+  opacity: root.visual ? root.visual.opacity : 1
   clip: true
 
   Shape {
@@ -106,7 +109,7 @@ Item {
     preferredRendererType: Shape.CurveRenderer
 
     ShapePath {
-      fillColor: Color.bar.background
+      fillColor: root.surfaceColor
       strokeColor: root.visual && root.visual.alertOpacity > 0 ? Color.accent : "transparent"
       strokeWidth: root.visual && root.visual.alertOpacity > 0 ? 1 : -1
 
@@ -139,6 +142,7 @@ Item {
     enabled: false
 
     IslandContent {
+      primaryText: root.foreground
       id: outgoingContent
       anchors.fill: parent
       content: root.visual && root.visual.outgoing ? root.visual.outgoing.content : null
@@ -181,6 +185,7 @@ Item {
     opacity: 1
 
     IslandContent {
+      primaryText: root.foreground
       id: incomingContent
       anchors.fill: parent
       content: root.visual && root.visual.incoming ? root.visual.incoming.content : null
@@ -243,7 +248,7 @@ Item {
         height: 16
         name: root.visual && root.visual.incoming ? root.visual.incoming.content.icon || "" : ""
         size: 14
-        color: Color.bar.text
+        color: root.foreground
         fallbackText: root.visual && root.visual.incoming
           ? root.visual.incoming.content.minimalValue || root.visual.incoming.content.icon || "◦" : ""
         visible: minimalArt.status !== Image.Ready
@@ -363,7 +368,7 @@ Item {
     width: root.sharedTitleScale > 0 ? root.sharedTitleSample.visualWidth / root.sharedTitleScale : 0
     text: root.sharedTitle ? root.sharedTitle.text : ""
     textFormat: Text.PlainText
-    color: Color.bar.text
+    color: root.foreground
     font.family: Style.font.family
     font.pixelSize: root.sharedTitleBackingSize
     font.weight: Font.DemiBold
@@ -383,7 +388,7 @@ Item {
     width: sharedMediaTitle.width
     text: root.sharedTitleTransition ? root.sharedTitleTransition.incoming.text : ""
     textFormat: Text.PlainText
-    color: Color.bar.text
+    color: root.foreground
     font.family: Style.font.family
     font.pixelSize: root.sharedTitleBackingSize
     font.weight: Font.DemiBold

@@ -1,5 +1,4 @@
 import QtQuick
-import QtQuick.Shapes
 import qs.Commons
 
 Item {
@@ -7,6 +6,7 @@ Item {
 
   property var visual: null
   property var outline: null
+  property color foreground: Color.bar.text
   property bool interactive: false
   signal clicked()
 
@@ -24,17 +24,6 @@ Item {
   height: root.drawn ? root.outline.bounds.height : 0
   visible: root.drawn && width > 0 && height > 0
   clip: true
-
-  Shape {
-    anchors.fill: parent
-    preferredRendererType: Shape.CurveRenderer
-
-    ShapePath {
-      fillColor: Color.bar.background
-      strokeWidth: -1
-      PathSvg { path: root.outline ? root.outline.perimeter : "" }
-    }
-  }
 
   Item {
     id: contentClip
@@ -60,7 +49,7 @@ Item {
         height: 18
         name: root.card.icon || ""
         size: 14
-        color: Color.bar.text
+        color: root.foreground
         fallbackText: root.card.icon || "◦"
       }
 
@@ -77,7 +66,7 @@ Item {
           text: root.card.label || "Activity"
           textFormat: Text.PlainText
           elide: Text.ElideRight
-          color: Color.bar.text
+          color: root.foreground
           font.family: Style.font.family
           font.pixelSize: 12
           font.weight: Font.DemiBold

@@ -31,7 +31,7 @@ assert.match(activityVisualSource, /id:\s*capsuleBackground[\s\S]*?ShapePath[\s\
   "one closed ShapePath consumes the pure outline perimeter")
 assert.equal((source.match(/backgroundVisible: !root\.unifiedSurface/g) || []).length, 2,
   "both content bodies relinquish their individual fills to the unified surface")
-assert.match(source, /capsuleOutline: ViewModel\.activityOutline\(motion\.visual\.capsule\.rect, root\.metrics\)/,
+assert.match(source, /capsuleOutline: ViewModel\.barIslandOutline\(root\.primaryRect, root\.metrics\)/,
   "the hub draws one continuous perimeter from the persistent capsule")
 assert.match(source, /PathSvg \{ path: root\.capsuleOutline\.perimeter \}/,
   "the capsule outline drives the unified fill")
@@ -71,8 +71,8 @@ assert.match(activityVisualSource, /outgoing\.offsetX[\s\S]*incoming\.offsetX/,
   "both retained content layers consume the region projection coordinates")
 assert.match(activityVisualSource, /sharedTitle\.offsetY/,
   "the one shared title consumes its identity handoff displacement")
-assert.ok((activityVisualSource.match(/opacity:\s*1/g) || []).length >= 4,
-  "the activity body, content layers and shared title stay fully opaque")
+assert.match(activityVisualSource, /opacity: root\.visual \? root\.visual\.opacity : 1/,
+  "the secondary content follows the split ink sample")
 assert.ok((source.match(/intersection:\s*Intersection\.Subtract/g) || []).length >= 4,
   "the input mask subtracts the same quarter-circle shoulder cutouts")
 assert.match(source, /outlines:\s*\{ primary: outlineFor\(bodyOne\), secondary: outlineFor\(bodyTwo\) \}/,

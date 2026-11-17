@@ -100,38 +100,9 @@ assert.ok(two.geometry.secondary.x >= two.geometry.card.x + two.geometry.card.wi
 assert.equal(two.geometry.card.x, 1000, "two-card group starts at the reserved slot")
 assert.equal(two.geometry.secondary.x + two.geometry.secondary.width, 1250, "two-card group ends at the reserved slot")
 assert.ok(two.geometry.card.y >= 0 && two.geometry.card.y + two.geometry.card.height <= 26, "compact card fits the 26px bar")
-const hubPairGeometry = viewModel.geometryFor("compact", true, viewModel.screenMetrics(twoMetrics), false, true)
-assert.equal(hubPairGeometry.card.width, 176, "the primary gets most of the reserved slot")
-assert.equal(hubPairGeometry.secondary.width, 68, "the concurrent activity retains room for its icon and status")
-assert.equal(hubPairGeometry.secondary.x - (hubPairGeometry.card.x + hubPairGeometry.card.width), 6, "a hub pair keeps the native compact gap")
-assert.equal(hubPairGeometry.secondary.x + hubPairGeometry.secondary.width, hubPairGeometry.slot.x + hubPairGeometry.slot.width,
-  "a hub pair fills the existing reserved slot")
-const measuredPairMetrics = metrics("top")
-measuredPairMetrics.compactPairWidths = { primary: 82, secondary: 44 }
-const measuredPair = viewModel.geometryFor("compact", true, viewModel.screenMetrics(measuredPairMetrics), false, true)
-const measuredGroupWidth = measuredPair.card.width + measuredPair.secondary.width + 6
-assert.equal(measuredPair.slot.width, 250, "intrinsic pair sizing preserves the full capsule slot")
-assert.equal(measuredPair.card.width, 82, "the primary body uses its measured intrinsic width")
-assert.equal(measuredPair.secondary.width, 44, "the secondary body uses its measured intrinsic width")
-assert.equal(measuredPair.card.x - measuredPair.slot.x, Math.floor((measuredPair.slot.width - measuredGroupWidth) / 2),
-  "the measured pair is centered as one visual group")
-assert.equal(measuredPair.secondary.x - (measuredPair.card.x + measuredPair.card.width), 6,
-  "the measured pair retains the compact gap")
-assert.ok(measuredPair.secondary.x + measuredPair.secondary.width <= measuredPair.slot.x + measuredPair.slot.width,
-  "the measured pair stays inside the capsule slot")
-const oversizedPairMetrics = metrics("top")
-oversizedPairMetrics.compactPairWidths = { primary: 300, secondary: 180 }
-const oversizedPair = viewModel.geometryFor("compact", true, viewModel.screenMetrics(oversizedPairMetrics), false, true)
-assert.ok(oversizedPair.card.x >= oversizedPair.slot.x, "an oversized primary measurement is bounded to the slot")
-assert.ok(oversizedPair.secondary.x + oversizedPair.secondary.width <= oversizedPair.slot.x + oversizedPair.slot.width,
-  "an oversized secondary measurement is bounded to the slot")
-assert.equal(oversizedPair.secondary.x - (oversizedPair.card.x + oversizedPair.card.width), 6,
-  "bounded intrinsic widths never overlap")
-const longPrimaryPairMetrics = metrics("top")
-longPrimaryPairMetrics.compactPairWidths = { primary: 900, secondary: 68 }
-const longPrimaryPair = viewModel.geometryFor("compact", true, viewModel.screenMetrics(longPrimaryPairMetrics), false, true)
-assert.equal(longPrimaryPair.secondary.width, 68, "a long primary title preserves the measured secondary icon region")
-assert.equal(longPrimaryPair.card.width, 176, "a long primary title receives the remaining bounded width")
+assert.equal(two.geometry.secondary.width, two.geometry.secondary.height, "the split endpoint is a circular activity bubble")
+assert.equal(two.geometry.card.width + two.geometry.secondary.width + 6, two.geometry.slot.width,
+  "the two pills occupy the reserved bar slot")
 
 for (const position of ["top", "bottom", "left", "right"]) {
   const raw = metrics(position)
@@ -254,19 +225,19 @@ const pairedMediaIntent = viewModel.motionIntentFor({
   phase: "compact",
   primary: Object.assign({}, mediaFrame.primary, { compactText: "Night Drive" }),
   secondary: Object.assign({}, mediaFrame.primary, { key: "second-media", compactText: "Night Drive" }),
-  geometry: hubPairGeometry
+  geometry: two.geometry
 }, twoMetrics)
-assert.equal(pairedMediaIntent.primary.sharedTitle.compact.body.width, 176, "primary media title uses its dominant compact body")
-assert.equal(pairedMediaIntent.secondary.sharedTitle.compact.body.width, 68, "secondary media title uses its smaller compact body")
-assert.equal(pairedMediaIntent.secondary.sharedTitle.identity.key, "second-media", "secondary media keeps a meaningful compact title identity")
+assert.equal(pairedMediaIntent.primary.sharedTitle.compact.body.width, 222, "primary media title uses its dominant compact body")
+assert.equal(pairedMediaIntent.secondary.sharedTitle.compact.body.width, 22, "secondary media title uses its smaller compact body")
+assert.equal(pairedMediaIntent.secondary.sharedTitle.identity, null, "secondary media uses artwork inside the bubble")
 const expandedSecondaryIntent = viewModel.motionIntentFor({
   phase: "expanded",
   selected: Object.assign({}, mediaFrame.primary, { key: "second-media", compactText: "Night Drive" }),
-  titleCompactRect: hubPairGeometry.secondary,
+  titleCompactRect: two.geometry.secondary,
   titleExpandedRect: mediaFrame.geometry.card,
   geometry: { card: mediaFrame.geometry.card }
 }, twoMetrics)
-assert.equal(expandedSecondaryIntent.primary.sharedTitle.compact.body.width, 68,
+assert.equal(expandedSecondaryIntent.primary.sharedTitle.compact.body.width, 22,
   "an expanded secondary media card retains its actual compact title endpoint")
 const minimalActivity = { ...mediaActivity, compact: null }
 const minimalMedia = viewModel.frameFor(state("minimal", "", minimalActivity), "DP-1", metrics("top"), activityModel.selection)

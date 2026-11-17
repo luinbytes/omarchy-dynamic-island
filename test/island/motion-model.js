@@ -47,14 +47,21 @@ function tick(state, seconds, steps) {
   return next
 }
 
-assert.equal(motion.PROFILES.expansion.omega, Math.PI * 2 / 0.32, "the perimeter uses the Nootch 0.32 second response translation")
-assert.equal(motion.PROFILES.expansion.zeta, 0.88, "the perimeter uses the Nootch damping fraction")
-assert.equal(motion.PROFILES.collapse.omega, motion.PROFILES.expansion.omega, "closing keeps the same outer response")
-assert.equal(motion.PROFILES.collapse.zeta, motion.PROFILES.expansion.zeta, "closing keeps the same outer damping")
-const outerSamples = [100, 200].map(ms => motion.sampleSpring(0, 0, 1,
-  motion.PROFILES.expansion.omega, motion.PROFILES.expansion.zeta, ms / 1000).value)
-assert.ok(outerSamples[0] > 0.60 && outerSamples[0] < 0.67, "the Nootch-derived perimeter reaches its early expansion sample")
-assert.ok(outerSamples[1] > 0.93 && outerSamples[1] < 0.98, "the Nootch-derived perimeter reaches its 200 ms sample")
+// Split grows a connected lobe before the delayed pinch. Merge absorbs it before the pill settles.
+const split = t => motion.splitFrame(t, true, 22, 6)
+const merge = t => motion.splitFrame(t, false, 22, 6)
+assert.equal(split(0).primary, 0)
+assert.equal(split(0.3).left, split(0).left)
+assert.ok(motion.neckPath(split(0.45).primary, split(0.45).left, 22))
+assert.equal(motion.neckPath(split(1.5).primary, split(1.5).left, 22), "")
+assert.ok(Math.abs(split(1.5).primary + 28) < 0.01)
+assert.ok(merge(0.15).bubble)
+assert.equal(merge(0.21).bubble, false)
+const interrupted = split(0.42)
+const reversed = motion.splitFrame(0, false, 22, 6, interrupted)
+for (const axis of ["primary", "left", "right", "vPrimary", "vLeft", "vRight"]) {
+  assert.equal(reversed[axis], interrupted[axis], "mid-split reversal preserves " + axis)
+}
 
 let state = motion.initialState()
 state = motion.reconcile(state, intent(body("a", { x: 250, y: 0, width: 200, height: 22, radius: 11 }, "primary")), false)
@@ -118,7 +125,7 @@ assert.deepEqual({
   height: Math.round(visual.rect.height), radius: Math.round(visual.rect.radius)
 }, agentsExpanded, "the captured Agents capsule settles at its expanded geometry")
 assert.deepEqual(visual.regionRect, agentsCompact, "the retained compact region remains available as projection history")
-assert.equal(visual.incoming.offsetX, 0, "a settled expanded layer starts at the capsule-local x origin")
+assert.ok(Math.abs(visual.incoming.offsetX) < 0.001, "a settled expanded layer starts at the capsule-local x origin")
 assert.ok(Math.abs(visual.incoming.offsetY) < 0.001, "a settled expanded layer starts at the capsule-local y origin")
 
 function edgeMetrics(edge) {

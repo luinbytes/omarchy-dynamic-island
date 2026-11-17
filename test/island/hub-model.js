@@ -139,8 +139,8 @@ assert.equal(compactFrame.primary.compactText, "3 blocked procs", "a process pai
 assert.equal(compactFrame.secondary.compactText, "Discord", "a notification pair keeps the app name")
 assert.equal(compactFrame.primary.key, blocked[0].key, "the system card keeps the exact selected process key")
 assert.equal(compactFrame.secondary.key, "notification:live", "the notification card keeps the exact selected key")
-assert.equal(compactFrame.geometry.card.width, 176, "hub primary takes the larger share")
-assert.equal(compactFrame.geometry.secondary.width, 68, "hub secondary keeps an icon and short semantic cue")
+assert.equal(compactFrame.geometry.card.width, 222, "hub primary takes the larger share")
+assert.equal(compactFrame.geometry.secondary.width, 22, "the secondary uses the bar-height icon bubble")
 assert.equal(compactFrame.geometry.secondary.x - (compactFrame.geometry.card.x + compactFrame.geometry.card.width), 6,
   "hub compact cards keep the existing gap")
 assert.equal(compactFrame.splitMinimal, false, "a labelled hub pair never takes the minimal renderer")
@@ -152,7 +152,7 @@ const agentPair = Hub.frameFor(compactResult.state, Object.assign({}, compactRes
 assert.equal(agentPair.secondary.icon, "robot", "the short agent presentation retains its semantic robot identity")
 assert.equal(agentPair.secondary.compactText, "Working", "the small secondary explains its live status rather than showing a bare count")
 assert.equal(agentPair.secondary.value, "1 agent working", "the full activity record retains the working count")
-assert.ok(agentPair.geometry.secondary.width > 64, "secondary media stays above its artwork-only breakpoint")
+assert.equal(agentPair.geometry.secondary.width, agentPair.geometry.secondary.height, "the second activity fits a round bubble")
 const blockedSchedule = Object.assign({}, compactResult.schedule, {
   primary: compactResult.schedule.byKey[blocked[0].key],
   secondary: null

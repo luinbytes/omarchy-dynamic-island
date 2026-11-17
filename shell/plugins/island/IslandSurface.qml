@@ -28,11 +28,13 @@ PanelWindow {
     && screenMonitor.activeWorkspace.hasFullscreen === true
   readonly property bool presenterAvailable: !!anchorItem && anchorItem.visible && anchorItem.width > 0 && anchorItem.height > 0
     && !!anchorWindow && !!anchorWindow.screen && !(bar && bar.barHidden) && !screenFullscreen
+  readonly property real barThickness: anchorWindow && anchorWindow.thickness !== undefined
+    ? anchorWindow.thickness : bar && bar.barSize ? bar.barSize : 0
   readonly property var activePeekContent: ViewModel.peekContent(service ? service.peekActive : null)
   readonly property var peekMeasurement: {
     var content = root.activePeekContent
     if (!content || !content.key) return { key: "", width: 0, height: 0 }
-    var barSize = root.bar && root.bar.barSize ? Math.max(0, root.bar.barSize) : 0
+    var barSize = root.barThickness
     var horizontal = root.barPosition === "top" || root.barPosition === "bottom"
     var textHeight = peekTitleTextMetrics.boundingRect.height
       + (content.value ? 2 + peekValueTextMetrics.boundingRect.height : 0)
@@ -50,30 +52,18 @@ PanelWindow {
     return {
       screen: { width: screen ? screen.width : 0, height: screen ? screen.height : 0 },
       anchor: { x: anchorScreenPos.x, y: anchorScreenPos.y, width: anchorItem ? anchorItem.width : 0, height: anchorItem ? anchorItem.height : 0 },
-      bar: { position: barPosition, size: bar && bar.barSize ? bar.barSize : 0 },
+      bar: { position: barPosition, size: root.barThickness },
       focusedScreen: service ? service.focusedScreen : "",
       slotWidth: slotWidth,
       compactHeight: Math.min(22, Math.max(12, anchorItem ? anchorItem.height : 22)),
       margin: 8,
       gap: 6,
-      compactPairWidths: root.compactPairWidths,
       peekMeasurement: root.peekMeasurement,
       nowMs: Date.now() + revision * 0
     }
   }
   readonly property var compactSchedule: root.service && typeof root.service.compactScheduleFor === "function"
     ? root.service.compactScheduleFor(root.screenName) : root.service && root.service.hubSchedule ? root.service.hubSchedule : null
-  readonly property var compactPairSource: {
-    var schedule = root.compactSchedule
-    return {
-      primary: schedule ? root.compactCardFor(schedule.primary, false) : null,
-      secondary: schedule && schedule.secondary ? root.compactCardFor(schedule.secondary, true) : null
-    }
-  }
-  readonly property var compactPairWidths: ({
-    primary: root.measureCompactWidth(root.compactPairSource.primary, primaryCompactTextMetrics),
-    secondary: root.measureCompactWidth(root.compactPairSource.secondary, secondaryCompactTextMetrics)
-  })
   readonly property var liveFrame: ViewModel.frameFor(service ? service.state : null, screenName, metrics, ActivityModel.selection)
   readonly property var baseFrame: service && service.hubEntryVisible
     ? HubModel.frameFor(service.hubState, root.compactSchedule, screenName, ViewModel.screenMetrics(metrics), ViewModel)
@@ -84,10 +74,18 @@ PanelWindow {
   readonly property bool hasVisuals: motion.hasVisuals
   readonly property bool unifiedSurface: !!root.service && root.service.hubEntryVisible
   readonly property bool closedPeekPresentation: !!root.peekVisual && root.peekVisual.placement === "closed"
-  readonly property var capsuleOutline: ViewModel.activityOutline(motion.visual.capsule.rect, root.metrics)
+  readonly property var splitShape: motion.visual.split
+  readonly property var primaryRect: root.splitShape ? root.splitShape.primary : motion.visual.capsule.rect
+  readonly property var capsuleOutline: ViewModel.barIslandOutline(root.primaryRect, root.metrics)
+  readonly property var bubbleOutline: ViewModel.plainActivityOutline(root.splitShape ? root.splitShape.bubble : null)
+  readonly property color barBase: bar && bar.background !== undefined ? bar.background : Color.bar.background
+  readonly property color barInk: bar && bar.barForeground !== undefined ? bar.barForeground : Color.bar.text
+  readonly property bool glassy: !!(bar && bar.shell && bar.shell.barConfig && bar.shell.barConfig.background === "glassy")
+  readonly property color capsuleFill: bar && bar.transparent ? "transparent" : root.glassy
+    ? Qt.rgba(barBase.r, barBase.g, barBase.b, Math.min(barBase.a, 0.35)) : barBase
   readonly property var peekVisual: motion.visual.peek
   readonly property var peekOutline: root.closedPeekPresentation ? root.capsuleOutline
-    : ViewModel.attachedPeekOutline(root.peekVisual ? root.peekVisual.rect : null, root.metrics)
+    : ViewModel.plainActivityOutline(root.peekVisual ? root.peekVisual.rect : null)
   readonly property bool peekInputActive: root.presenterAvailable && !!root.frame.peek && !!root.peekVisual && root.peekVisual.visible
     && !!root.peekOutline && root.peekOutline.contentSafe !== false
   readonly property var firstInputOutline: root.closedPeekPresentation ? root.peekOutline
@@ -95,9 +93,11 @@ PanelWindow {
   readonly property bool firstInputContentSafe: !!root.firstInputOutline && root.firstInputOutline.contentSafe !== false
   readonly property bool firstInputActive: root.presenterAvailable && (root.closedPeekPresentation ? root.peekInputActive : root.unifiedSurface
     ? motion.visual.capsule.visible && (bodyOne.interactive || bodyTwo.interactive) : bodyOne.interactive) && root.firstInputContentSafe
-  readonly property var secondInputOutline: root.peekVisual && root.peekVisual.placement === "below" ? root.peekOutline : bodyTwo.outline
+  readonly property var secondInputOutline: root.peekVisual && root.peekVisual.placement === "below" ? root.peekOutline
+    : root.splitShape ? root.bubbleOutline : bodyTwo.outline
   readonly property bool secondInputContentSafe: !!root.secondInputOutline && root.secondInputOutline.contentSafe !== false
   readonly property bool secondInputActive: root.presenterAvailable && (root.peekVisual && root.peekVisual.placement === "below" ? root.peekInputActive
+    : root.splitShape ? !!root.frame.secondary && !!root.splitShape.bubble
     : !root.unifiedSurface && bodyTwo.interactive) && root.secondInputContentSafe
   readonly property var hoverRegion: {
     var first = root.firstInputOutline && root.firstInputOutline.bounds ? root.firstInputOutline.bounds : null
@@ -122,27 +122,6 @@ PanelWindow {
     } catch (error) {
       return null
     }
-  }
-
-  function compactCardFor(card, paired) {
-    if (!card) return null
-    if (typeof HubModel.compactCard === "function") return HubModel.compactCard(card, paired)
-    return card
-  }
-
-  function compactTextFor(card) {
-    if (!card) return ""
-    if (card.media) return String(card.media.title || "")
-    if (typeof card.compactText === "string" && card.compactText !== "") return card.compactText
-    return String(card.label || card.value || "")
-  }
-
-  function measureCompactWidth(card, metricsItem) {
-    if (!card || !card.key) return 0
-    var textWidth = metricsItem && isFinite(metricsItem.advanceWidth) ? metricsItem.advanceWidth : 0
-    if (card.media) return Math.max(54, Math.ceil(textWidth + 54))
-    var iconWidth = card.icon ? 12 : 0
-    return Math.max(32, Math.ceil(textWidth + iconWidth + (iconWidth > 0 ? 4 : 0) + 8))
   }
 
   function expandKey(key, reason) {
@@ -322,7 +301,7 @@ PanelWindow {
         } : null,
         visible: !!peekVisual && peekVisual.visible === true
       },
-      composition: root.unifiedSurface ? "unified" : "independent",
+      composition: root.splitShape && root.splitShape.bubble ? "split" : root.unifiedSurface ? "islandcn" : "independent",
       surfaceOutline: root.unifiedSurface ? root.capsuleOutline.bounds : null,
       outlines: { primary: outlineFor(bodyOne), secondary: outlineFor(bodyTwo) },
       animation: { primary: motion.unsettled, secondary: motion.unsettled },
@@ -347,8 +326,8 @@ PanelWindow {
       media: bodyOne.mediaDiagnostic() || bodyTwo.mediaDiagnostic(),
       theme: {
         fontFamily: Style.font.family,
-        background: String(Color.bar.background),
-        foreground: String(Color.bar.text),
+        background: String(root.capsuleFill),
+        foreground: String(root.barInk),
         accent: String(Color.accent)
       }
     }
@@ -360,7 +339,8 @@ PanelWindow {
   exclusionMode: ExclusionMode.Ignore
   anchors { top: true; bottom: true; left: true; right: true }
 
-  WlrLayershell.namespace: "luinbytes-island"
+  // Omarchy scopes its glass blur and alpha cutoff to the bar layer namespace.
+  WlrLayershell.namespace: root.glassy ? "omarchy-bar" : "luinbytes-island"
   WlrLayershell.layer: WlrLayer.Top
   WlrLayershell.keyboardFocus: presenterAvailable && opened ? (focusPrimed ? WlrKeyboardFocus.OnDemand : WlrKeyboardFocus.Exclusive) : WlrKeyboardFocus.None
 
@@ -518,22 +498,6 @@ PanelWindow {
   }
 
   TextMetrics {
-    id: primaryCompactTextMetrics
-    text: root.compactTextFor(root.compactPairSource.primary)
-    font.family: Style.font.family
-    font.pixelSize: root.compactPairSource.primary && root.compactPairSource.primary.media ? 11 : 10
-    font.weight: Font.DemiBold
-  }
-
-  TextMetrics {
-    id: secondaryCompactTextMetrics
-    text: root.compactTextFor(root.compactPairSource.secondary)
-    font.family: Style.font.family
-    font.pixelSize: root.compactPairSource.secondary && root.compactPairSource.secondary.media ? 11 : 10
-    font.weight: Font.DemiBold
-  }
-
-  TextMetrics {
     id: peekTitleTextMetrics
     text: root.activePeekContent ? root.activePeekContent.label || "Activity" : ""
     font.family: Style.font.family
@@ -642,17 +606,73 @@ PanelWindow {
       }
     }
 
-    Shape {
-      x: root.capsuleOutline.bounds.x
-      y: root.capsuleOutline.bounds.y
-      width: root.capsuleOutline.bounds.width
-      height: root.capsuleOutline.bounds.height
-      visible: root.unifiedSurface && root.hasVisuals && !root.closedPeekPresentation
-      preferredRendererType: Shape.CurveRenderer
-      ShapePath {
-        fillColor: Color.bar.background
-        strokeWidth: -1
-        PathSvg { path: root.capsuleOutline.perimeter }
+    // The host already paints the strip. Paint only the continuation beyond
+    // its edge, or a translucent theme would get a second coat inside the bar.
+    Item {
+      id: outsideBar
+      anchors.fill: parent
+      anchors.topMargin: root.barPosition === "top" ? root.barThickness : 0
+      anchors.bottomMargin: root.barPosition === "bottom" ? root.barThickness : 0
+      anchors.leftMargin: root.barPosition === "left" ? root.barThickness : 0
+      anchors.rightMargin: root.barPosition === "right" ? root.barThickness : 0
+      clip: true
+
+      Item {
+        x: -outsideBar.x
+        y: -outsideBar.y
+        Shape {
+          x: root.capsuleOutline.bounds.x
+          y: root.capsuleOutline.bounds.y
+          width: root.capsuleOutline.bounds.width
+          height: root.capsuleOutline.bounds.height
+          visible: (root.unifiedSurface || root.closedPeekPresentation) && root.hasVisuals
+          preferredRendererType: Shape.CurveRenderer
+          ShapePath {
+            fillColor: root.capsuleFill
+            strokeWidth: -1
+            PathSvg { path: root.capsuleOutline.perimeter }
+          }
+        }
+
+        Shape {
+          x: root.capsuleOutline.bounds.x + (rotation === 90 ? root.capsuleOutline.bounds.width : 0)
+          y: root.capsuleOutline.bounds.y
+          width: rotation === 90 ? motion.visual.capsule.rect.height : motion.visual.capsule.rect.width
+          height: rotation === 90 ? motion.visual.capsule.rect.width : motion.visual.capsule.rect.height
+          transformOrigin: Item.TopLeft
+          rotation: root.splitShape && root.splitShape.vertical ? 90 : 0
+          visible: root.unifiedSurface && !!root.splitShape && !!root.splitShape.bubble
+          preferredRendererType: Shape.CurveRenderer
+          ShapePath {
+            fillColor: root.capsuleFill
+            strokeWidth: -1
+            PathSvg { path: root.splitShape ? root.splitShape.neck : "" }
+          }
+        }
+
+        Rectangle {
+          visible: root.unifiedSurface && !!root.splitShape && !!root.splitShape.bubble
+          x: root.bubbleOutline.body.x
+          y: root.bubbleOutline.body.y
+          width: root.bubbleOutline.body.width
+          height: root.bubbleOutline.body.height
+          radius: Math.min(width, height) / 2
+          color: root.capsuleFill
+        }
+
+        Shape {
+          x: root.peekOutline ? root.peekOutline.bounds.x : 0
+          y: root.peekOutline ? root.peekOutline.bounds.y : 0
+          width: root.peekOutline ? root.peekOutline.bounds.width : 0
+          height: root.peekOutline ? root.peekOutline.bounds.height : 0
+          visible: !!root.peekVisual && root.peekVisual.visible && !root.closedPeekPresentation
+          preferredRendererType: Shape.CurveRenderer
+          ShapePath {
+            fillColor: root.capsuleFill
+            strokeWidth: -1
+            PathSvg { path: root.peekOutline ? root.peekOutline.perimeter : "" }
+          }
+        }
       }
     }
 
@@ -676,6 +696,9 @@ PanelWindow {
       id: bodyOne
       visible: !root.closedPeekPresentation
       backgroundVisible: !root.unifiedSurface
+      islandSkin: root.unifiedSurface
+      foreground: root.barInk
+      surfaceColor: root.capsuleFill
       service: root.service
       screenName: root.screenName
       visual: motion.visual.bodies[0]
@@ -698,6 +721,9 @@ PanelWindow {
       id: bodyTwo
       visible: !root.closedPeekPresentation
       backgroundVisible: !root.unifiedSurface
+      islandSkin: root.unifiedSurface
+      foreground: root.barInk
+      surfaceColor: root.capsuleFill
       service: root.service
       screenName: root.screenName
       visual: motion.visual.bodies[1]
@@ -718,6 +744,7 @@ PanelWindow {
 
     PeekContent {
       id: peekContent
+      foreground: root.barInk
       visual: root.peekVisual
       outline: root.peekOutline
       interactive: root.peekInputActive

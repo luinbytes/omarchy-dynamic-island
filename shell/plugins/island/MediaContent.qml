@@ -6,6 +6,7 @@ import qs.Ui as Ui
 
 Item {
   id: root
+  property color foregroundColor: Color.bar.text
 
   property var media: null
   property var actions: []
@@ -125,7 +126,7 @@ Item {
       anchors.verticalCenter: parent.verticalCenter
       text: root.media ? root.media.title : ""
       textFormat: Text.PlainText
-      color: Color.bar.text
+      color: root.foregroundColor
       font.family: Style.font.family
       font.pixelSize: 11
       font.weight: Font.DemiBold
@@ -228,7 +229,7 @@ Item {
       anchors.top: expandedArt.top
       text: root.media ? root.media.title : ""
       textFormat: Text.PlainText
-      color: Color.bar.text
+      color: root.foregroundColor
       font.family: Style.font.family
       font.pixelSize: 14
       font.weight: Font.DemiBold
@@ -428,7 +429,7 @@ Item {
             anchors.centerIn: parent
             visible: control.actionId === "playPause" && (!root.media || !root.media.playing)
             ShapePath {
-              fillColor: Color.bar.text
+              fillColor: root.foregroundColor
               strokeColor: "transparent"
               startX: 5
               startY: 3
@@ -443,8 +444,8 @@ Item {
             height: 24
             anchors.centerIn: parent
             visible: control.actionId === "playPause" && root.media && root.media.playing
-            Rectangle { x: 4; y: 3; width: 4; height: 18; color: Color.bar.text }
-            Rectangle { x: 16; y: 3; width: 4; height: 18; color: Color.bar.text }
+            Rectangle { x: 4; y: 3; width: 4; height: 18; color: root.foregroundColor }
+            Rectangle { x: 16; y: 3; width: 4; height: 18; color: root.foregroundColor }
           }
 
           Item {
@@ -452,13 +453,13 @@ Item {
             height: 24
             anchors.centerIn: parent
             visible: control.actionId === "previous" || control.actionId === "next"
-            Rectangle { x: control.actionId === "previous" ? 2 : 20; y: 3; width: 3; height: 18; color: Color.bar.text }
+            Rectangle { x: control.actionId === "previous" ? 2 : 20; y: 3; width: 3; height: 18; color: root.foregroundColor }
             Shape {
               width: 20
               height: 24
               x: control.actionId === "previous" ? 4 : 0
               ShapePath {
-                fillColor: Color.bar.text
+                fillColor: root.foregroundColor
                 strokeColor: "transparent"
                 startX: control.actionId === "previous" ? 18 : 2
                 startY: 3
@@ -494,7 +495,7 @@ Item {
       visible: root.canCyclePlayer
       enabled: visible && root.interactive
       text: "⇄"
-      foreground: Color.bar.text
+      foreground: root.foregroundColor
       fontSize: 13
       focusable: enabled
       tooltipText: "Switch media player"

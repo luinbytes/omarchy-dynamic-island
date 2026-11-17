@@ -23,7 +23,7 @@ Item {
   readonly property var centerDetails: root.details.center || ({})
   readonly property bool centerHasProgress: typeof root.centerDetails.progress === "number"
   readonly property bool showExpanded: root.expanded
-  readonly property color primaryText: Color.bar.text
+  property color primaryText: Color.bar.text
   readonly property color secondaryText: Color.muted
   readonly property color accent: Color.accent
   readonly property color surface: Color.bar.background
@@ -290,6 +290,7 @@ Item {
   }
 
   MediaContent {
+    foregroundColor: root.primaryText
     id: mediaContent
     anchors.fill: parent
     visible: root.isMedia

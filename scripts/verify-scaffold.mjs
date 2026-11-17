@@ -159,7 +159,7 @@ if (run(process.execPath, ["test/island/notes-model.js"])) console.log("ok - not
 if (run(process.execPath, ["test/island/note-pages.js"])) console.log("ok - lossless bounded note pages")
 if (run(process.execPath, ["test/island/weather-model.js"])) console.log("ok - weather boundary model")
 if (run(process.execPath, ["test/island/theme-contract.js"])) console.log("ok - native theme contract")
-if (run(process.execPath, ["scripts/compare-island-motion.mjs"])) console.log("ok - Nootch outer motion source contract")
+if (run(process.execPath, ["scripts/compare-island-motion.mjs"])) console.log("ok - islandcn outer motion source contract")
 if (run(process.execPath, ["test/island/surface-contract.js"])) console.log("ok - surface contract")
 if (run(process.execPath, ["test/island/manifest-contract.js"])) console.log("ok - manifest contract")
 if (run(process.execPath, ["test/island/plugin-contract.js"])) console.log("ok - plugin contract")
