@@ -1487,12 +1487,14 @@ function renderBody(body, capsule, edge, bounds, alerting, pulse) {
   if (body.handoff === "close" && body.outgoing) outgoingOffset = nearEdgeOffset(surfaceRect, body.outgoing.layout, edge)
   var incomingFade = body.incoming ? body.incoming.fade : null
   var outgoingFade = body.outgoing ? body.outgoing.fade : null
+  // An opening moves its layers on the capsule's progress, so a carried shift
+  // decays on that same clock. Two clocks would push the layer past its place.
   if (incomingFade) {
-    var incomingRemaining = 1 - fadeProgress(incomingFade)
+    var incomingRemaining = morph ? 1 - progress : 1 - fadeProgress(incomingFade)
     incomingOffset = { x: incomingOffset.x + incomingFade.shiftX * incomingRemaining, y: incomingOffset.y + incomingFade.shiftY * incomingRemaining }
   }
   if (outgoingFade) {
-    var outgoingRemaining = 1 - fadeProgress(outgoingFade)
+    var outgoingRemaining = morph ? 1 - progress : 1 - fadeProgress(outgoingFade)
     outgoingOffset = { x: outgoingOffset.x + outgoingFade.shiftX * outgoingRemaining, y: outgoingOffset.y + outgoingFade.shiftY * outgoingRemaining }
   }
 

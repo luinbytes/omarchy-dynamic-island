@@ -197,6 +197,13 @@ assert.ok(Math.abs(visual.incoming.offsetY) < 0.001, "a settled expanded layer s
   swapped = layers(motion.renderFrame(reversed).bodies[0])
   near(swapped.detail.opacity, midClose.detail.opacity, "reopening keeps the detail opacity")
   near(swapped.compact.opacity, midClose.compact.opacity, "reopening keeps the compact opacity")
+  const reopenStart = at(motion.renderFrame(reversed).bodies[0], swapped.detail).y
+  let lowest = reopenStart
+  for (let step = 1; step <= 60; step++) {
+    const sample = motion.renderFrame(motion.advance(reversed, step / 60)).bodies[0]
+    lowest = Math.min(lowest, at(sample, layers(sample).detail).y)
+  }
+  assert.ok(lowest > Math.min(reopenStart, expanded.y) - 1, `the reopened detail does not dip past its place (${lowest})`)
   reversed = tick(reversed, 2, 240)
   frame = motion.renderFrame(reversed).bodies[0]
   assert.equal(frame.outgoing, null)
