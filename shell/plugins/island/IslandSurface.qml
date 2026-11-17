@@ -632,14 +632,11 @@ PanelWindow {
       y: root.capsuleOutline.body.y
       width: root.capsuleOutline.body.width
       height: root.capsuleOutline.body.height
-      enabled: root.unifiedSurface && root.firstInputActive && !root.closedPeekPresentation
+      enabled: !root.opened && root.unifiedSurface && root.firstInputActive && !root.closedPeekPresentation
       cursorShape: enabled ? Qt.PointingHandCursor : Qt.ArrowCursor
       onClicked: function(mouse) {
-        if (root.opened) root.close("card-click")
-        else {
-          var key = ViewModel.activityKeyAtPoint(motion.visual.bodies, x + mouse.x, y + mouse.y)
-          if (key) root.expandKey(key, "card")
-        }
+        var key = ViewModel.activityKeyAtPoint(motion.visual.bodies, x + mouse.x, y + mouse.y)
+        if (key) root.expandKey(key, "card")
       }
     }
 
@@ -661,8 +658,7 @@ PanelWindow {
       outlineMetrics: root.metrics
       z: visual && visual.role === "expanded" ? 2 : 1
       onClicked: function(key) {
-        if (root.opened) root.close("card-click")
-        else root.expandKey(key, visual && visual.role === "secondary" ? "secondary" : "card")
+        root.expandKey(key, visual && visual.role === "secondary" ? "secondary" : "card")
       }
       onActionRequested: function(actionId) { root.invoke(actionId) }
       onSeekRequested: function(trackToken, positionSeconds) { root.seek(trackToken, positionSeconds) }
@@ -687,12 +683,24 @@ PanelWindow {
       outlineMetrics: root.metrics
       z: visual && visual.role === "expanded" ? 2 : 1
       onClicked: function(key) {
-        if (root.opened) root.close("card-click")
-        else root.expandKey(key, visual && visual.role === "secondary" ? "secondary" : "card")
+        root.expandKey(key, visual && visual.role === "secondary" ? "secondary" : "card")
       }
       onActionRequested: function(actionId) { root.invoke(actionId) }
       onSeekRequested: function(trackToken, positionSeconds) { root.seek(trackToken, positionSeconds) }
       onLayoutReported: function(key, widthToken, preferredHeight) { root.reportLayout(key, widthToken, preferredHeight, false) }
+    }
+
+    // Keep the original bar slot as the toggle. Detail text and panel padding
+    // should tolerate a click while someone is reading or aiming at a control.
+    MouseArea {
+      x: root.metrics.anchor.x
+      y: root.metrics.anchor.y
+      width: root.metrics.anchor.width
+      height: root.metrics.anchor.height
+      enabled: root.opened
+      z: 3
+      cursorShape: Qt.PointingHandCursor
+      onClicked: root.close("bar-click")
     }
 
     PeekContent {

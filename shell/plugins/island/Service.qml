@@ -267,7 +267,8 @@ Item {
     var peekResult = PeekModel.reconcile(root.peekState, sources, {
       nowMs: nowMs,
       targetScreens: targetScreens,
-      readingScreen: root.state.presentation.phase === "expanded" ? root.state.presentation.ownerScreen : "",
+      readingScreen: root.hubState.expanded ? root.hubState.ownerScreen
+        : root.state.presentation.phase === "expanded" ? root.state.presentation.ownerScreen : "",
       dnd: notificationStore.dnd === true,
       reason: reason || "snapshot"
     })

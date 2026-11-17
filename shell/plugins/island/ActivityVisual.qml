@@ -457,7 +457,7 @@ Item {
   MouseArea {
     anchors.fill: parent
     z: -1
-    enabled: root.interactive && root.contentSafe
+    enabled: root.interactive && root.contentSafe && root.visual && root.visual.role !== "expanded"
     cursorShape: enabled ? Qt.PointingHandCursor : Qt.ArrowCursor
     onClicked: root.clicked(root.visual ? root.visual.key : "")
   }
