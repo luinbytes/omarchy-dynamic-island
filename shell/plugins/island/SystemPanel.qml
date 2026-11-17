@@ -1,11 +1,12 @@
 pragma ComponentBehavior: Bound
 
 import QtQuick
-import qs.Commons
+import qs.Commons as Commons
 import qs.Ui as Ui
 
 Item {
   id: root
+  property color foregroundColor: Commons.Color.bar.text
 
   required property var store
   property var content: null
@@ -116,8 +117,8 @@ Item {
         text: "System activity"
         textFormat: Text.PlainText
         elide: Text.ElideRight
-        color: Color.bar.text
-        font.family: Style.font.family
+        color: root.foregroundColor
+        font.family: Commons.Style.font.family
         font.pixelSize: 15
         font.weight: Font.DemiBold
       }
@@ -133,8 +134,8 @@ Item {
           anchors.verticalCenter: parent.verticalCenter
           text: (root.page + 1) + "/" + root.pageCount
           textFormat: Text.PlainText
-          color: Color.muted
-          font.family: Style.font.family
+          color: Commons.Color.muted
+          font.family: Commons.Style.font.family
           font.pixelSize: 9
         }
 
@@ -143,7 +144,7 @@ Item {
           width: 26
           height: 24
           radius: height / 2
-          foreground: Color.bar.text
+          foreground: root.foregroundColor
           fontSize: 13
           horizontalPadding: 0
           verticalPadding: 0
@@ -161,7 +162,7 @@ Item {
           width: 26
           height: 24
           radius: height / 2
-          foreground: Color.bar.text
+          foreground: root.foregroundColor
           fontSize: 13
           horizontalPadding: 0
           verticalPadding: 0
@@ -181,8 +182,8 @@ Item {
       text: root.snapshot.error || root.sampleAge()
       textFormat: Text.PlainText
       elide: Text.ElideRight
-      color: root.snapshot.available && !root.snapshot.error ? Color.muted : Color.accent
-      font.family: Style.font.family
+      color: root.snapshot.available && !root.snapshot.error ? Commons.Color.muted : Commons.Color.accent
+      font.family: Commons.Style.font.family
       font.pixelSize: 9
     }
 
@@ -197,8 +198,8 @@ Item {
           : root.strongestReading ? root.strongestReading.label : "No current readings"
         textFormat: Text.PlainText
         elide: Text.ElideRight
-        color: root.selectedEvent && root.selectedEvent.phase === "attention" ? Color.accent : Color.muted
-        font.family: Style.font.family
+        color: root.selectedEvent && root.selectedEvent.phase === "attention" ? Commons.Color.accent : Commons.Color.muted
+        font.family: Commons.Style.font.family
         font.pixelSize: 10
       }
 
@@ -210,8 +211,8 @@ Item {
         wrapMode: Text.WordWrap
         maximumLineCount: 2
         elide: Text.ElideRight
-        color: Color.bar.text
-        font.family: Style.font.family
+        color: root.foregroundColor
+        font.family: Commons.Style.font.family
         font.pixelSize: 24
         font.weight: Font.DemiBold
       }
@@ -227,8 +228,8 @@ Item {
         wrapMode: Text.WordWrap
         maximumLineCount: 2
         elide: Text.ElideRight
-        color: Color.muted
-        font.family: Style.font.family
+        color: Commons.Color.muted
+        font.family: Commons.Style.font.family
         font.pixelSize: root.selectedIsProcess ? 11 : 9
       }
     }
@@ -264,8 +265,8 @@ Item {
         width: parent.width
         text: "Linux pressure · 10 second average"
         textFormat: Text.PlainText
-        color: Color.muted
-        font.family: Style.font.family
+        color: Commons.Color.muted
+        font.family: Commons.Style.font.family
         font.pixelSize: 10
       }
 
@@ -284,8 +285,8 @@ Item {
         text: root.pageEvent ? root.pageEvent.label : ""
         textFormat: Text.PlainText
         elide: Text.ElideRight
-        color: root.pageEvent && root.pageEvent.phase === "attention" ? Color.accent : Color.bar.text
-        font.family: Style.font.family
+        color: root.pageEvent && root.pageEvent.phase === "attention" ? Commons.Color.accent : root.foregroundColor
+        font.family: Commons.Style.font.family
         font.pixelSize: 15
         font.weight: Font.DemiBold
       }
@@ -297,8 +298,8 @@ Item {
         wrapMode: Text.WordWrap
         maximumLineCount: 3
         elide: Text.ElideRight
-        color: Color.bar.text
-        font.family: Style.font.family
+        color: root.foregroundColor
+        font.family: Commons.Style.font.family
         font.pixelSize: root.isProcessEvent(root.pageEvent) ? 11 : 18
       }
 
@@ -307,8 +308,8 @@ Item {
         text: root.pageEvent && root.pageEvent.phase === "terminal" ? "Observed recovery"
           : "Observed condition · no process outcome inferred"
         textFormat: Text.PlainText
-        color: Color.muted
-        font.family: Style.font.family
+        color: Commons.Color.muted
+        font.family: Commons.Style.font.family
         font.pixelSize: 9
       }
     }
@@ -328,8 +329,8 @@ Item {
       text: metric.label
       textFormat: Text.PlainText
       horizontalAlignment: Text.AlignHCenter
-      color: Color.muted
-      font.family: Style.font.family
+      color: Commons.Color.muted
+      font.family: Commons.Style.font.family
       font.pixelSize: 9
     }
 
@@ -341,8 +342,8 @@ Item {
       textFormat: Text.PlainText
       horizontalAlignment: Text.AlignHCenter
       elide: Text.ElideRight
-      color: metric.supported ? Color.bar.text : Color.muted
-      font.family: Style.font.family
+      color: metric.supported ? root.foregroundColor : Commons.Color.muted
+      font.family: Commons.Style.font.family
       font.pixelSize: 13
       font.weight: Font.DemiBold
     }
@@ -360,8 +361,8 @@ Item {
       anchors.verticalCenter: parent.verticalCenter
       text: pressure.label
       textFormat: Text.PlainText
-      color: Color.bar.text
-      font.family: Style.font.family
+      color: root.foregroundColor
+      font.family: Commons.Style.font.family
       font.pixelSize: 10
     }
 
@@ -370,8 +371,8 @@ Item {
       anchors.verticalCenter: parent.verticalCenter
       text: root.valueText(pressure.reading)
       textFormat: Text.PlainText
-      color: typeof pressure.reading === "number" && isFinite(pressure.reading) ? Color.bar.text : Color.muted
-      font.family: Style.font.family
+      color: typeof pressure.reading === "number" && isFinite(pressure.reading) ? root.foregroundColor : Commons.Color.muted
+      font.family: Commons.Style.font.family
       font.pixelSize: 10
     }
   }

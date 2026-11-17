@@ -1,11 +1,12 @@
 pragma ComponentBehavior: Bound
 
 import QtQuick
-import qs.Commons
+import qs.Commons as Commons
 import qs.Ui as Ui
 
 Item {
   id: root
+  property color foregroundColor: Commons.Color.bar.text
 
   required property var store
   property real headerRightInset: 32
@@ -85,8 +86,8 @@ Item {
         text: root.setupOpen ? "Agent setup" : "Agents"
         textFormat: Text.PlainText
         elide: Text.ElideRight
-        color: Color.bar.text
-        font.family: Style.font.family
+        color: root.foregroundColor
+        font.family: Commons.Style.font.family
         font.pixelSize: 15
         font.weight: Font.DemiBold
       }
@@ -101,7 +102,7 @@ Item {
         Ui.Button {
           text: root.setupOpen ? "Done" : "Setup"
           height: 24
-          foreground: Color.bar.text
+          foreground: root.foregroundColor
           fontSize: 9
           horizontalPadding: 7
           verticalPadding: 0
@@ -118,8 +119,8 @@ Item {
           visible: !root.setupOpen && root.pageCount > 1
           text: (root.page + 1) + "/" + root.pageCount
           textFormat: Text.PlainText
-          color: Color.muted
-          font.family: Style.font.family
+          color: Commons.Color.muted
+          font.family: Commons.Style.font.family
           font.pixelSize: 9
         }
 
@@ -129,7 +130,7 @@ Item {
           width: 26
           height: 24
           radius: height / 2
-          foreground: Color.bar.text
+          foreground: root.foregroundColor
           fontSize: 13
           horizontalPadding: 0
           verticalPadding: 0
@@ -148,7 +149,7 @@ Item {
           width: 26
           height: 24
           radius: height / 2
-          foreground: Color.bar.text
+          foreground: root.foregroundColor
           fontSize: 13
           horizontalPadding: 0
           verticalPadding: 0
@@ -169,8 +170,8 @@ Item {
       text: root.store.sourceLabel
       textFormat: Text.PlainText
       elide: Text.ElideRight
-      color: Color.muted
-      font.family: Style.font.family
+      color: Commons.Color.muted
+      font.family: Commons.Style.font.family
       font.pixelSize: 9
     }
 
@@ -179,8 +180,8 @@ Item {
       visible: !root.setupOpen && root.visibleSessions.length === 0
       text: root.snapshot.enabled ? "No active agent sessions" : "No live agent source"
       textFormat: Text.PlainText
-      color: Color.muted
-      font.family: Style.font.family
+      color: Commons.Color.muted
+      font.family: Commons.Style.font.family
       font.pixelSize: 12
     }
 
@@ -193,7 +194,7 @@ Item {
         width: contentColumn.width
         height: 44
         radius: 10
-        color: Qt.rgba(Color.bar.text.r, Color.bar.text.g, Color.bar.text.b, 0.055)
+        color: Qt.rgba(root.foregroundColor.r, root.foregroundColor.g, root.foregroundColor.b, 0.055)
 
         Column {
           anchors.left: parent.left
@@ -213,8 +214,8 @@ Item {
                 || (sessionRow.modelData.parentId ? "Child " : "Session ") + sessionRow.modelData.sessionId.slice(-10)
               textFormat: Text.PlainText
               elide: Text.ElideRight
-              color: Color.bar.text
-              font.family: Style.font.family
+              color: root.foregroundColor
+              font.family: Commons.Style.font.family
               font.pixelSize: 11
               font.weight: Font.DemiBold
             }
@@ -223,8 +224,8 @@ Item {
               id: sessionStatus
               text: root.statusLabel(sessionRow.modelData)
               textFormat: Text.PlainText
-              color: root.sessionRank(sessionRow.modelData) <= 1 ? Color.accent : Color.muted
-              font.family: Style.font.family
+              color: root.sessionRank(sessionRow.modelData) <= 1 ? Commons.Color.accent : Commons.Color.muted
+              font.family: Commons.Style.font.family
               font.pixelSize: 9
             }
           }
@@ -235,8 +236,8 @@ Item {
               + sessionRow.modelData.event + " · " + sessionRow.modelData.ageSeconds + "s ago"
             textFormat: Text.PlainText
             elide: Text.ElideRight
-            color: Color.muted
-            font.family: Style.font.family
+            color: Commons.Color.muted
+            font.family: Commons.Style.font.family
             font.pixelSize: 9
           }
         }
@@ -256,8 +257,8 @@ Item {
         wrapMode: Text.WordWrap
         maximumLineCount: 4
         elide: Text.ElideRight
-        color: Color.muted
-        font.family: Style.font.family
+        color: Commons.Color.muted
+        font.family: Commons.Style.font.family
         font.pixelSize: 10
       }
 
@@ -267,7 +268,7 @@ Item {
 
         Ui.Button {
           text: root.store.observing ? "Stop observing" : "Observe hooks"
-          foreground: Color.bar.text
+          foreground: root.foregroundColor
           fontSize: 9
           focusable: true
           Accessible.role: Accessible.Button
@@ -280,7 +281,7 @@ Item {
         Ui.Button {
           text: "Install Codex"
           tooltipText: "Add Codex status hooks while preserving existing hooks"
-          foreground: Color.bar.text
+          foreground: root.foregroundColor
           fontSize: 9
           enabled: !root.store.configuring
           focusable: true
@@ -293,7 +294,7 @@ Item {
 
         Ui.Button {
           text: "Remove Codex"
-          foreground: Color.bar.text
+          foreground: root.foregroundColor
           fontSize: 9
           enabled: !root.store.configuring
           focusable: true

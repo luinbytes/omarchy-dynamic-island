@@ -1,12 +1,12 @@
 import QtQuick
 import QtQuick.Effects
 import QtQuick.Shapes
-import qs.Commons
+import qs.Commons as Commons
 import qs.Ui as Ui
 
 Item {
   id: root
-  property color foregroundColor: Color.bar.text
+  property color foregroundColor: Commons.Color.bar.text
 
   property var media: null
   property var actions: []
@@ -81,7 +81,7 @@ Item {
       anchors.verticalCenter: parent.verticalCenter
       clip: true
 
-      Rectangle { anchors.fill: parent; radius: 4; color: Color.muted }
+      Rectangle { anchors.fill: parent; radius: 4; color: Commons.Color.muted }
       Rectangle { id: compactArtMask; anchors.fill: parent; radius: 4; visible: false; layer.enabled: true }
 
       Image {
@@ -106,7 +106,7 @@ Item {
         height: 10
         visible: compactArtImage.status !== Image.Ready
         ShapePath {
-          fillColor: Color.bar.background
+          fillColor: Commons.Color.bar.background
           strokeColor: "transparent"
           startX: 6
           startY: 1
@@ -115,7 +115,7 @@ Item {
           PathLine { x: 2; y: 3 }
           PathLine { x: 6; y: 1 }
         }
-        Rectangle { x: 6; y: 7; width: 3; height: 3; radius: 1.5; color: Color.bar.background }
+        Rectangle { x: 6; y: 7; width: 3; height: 3; radius: 1.5; color: Commons.Color.bar.background }
       }
     }
 
@@ -127,7 +127,7 @@ Item {
       text: root.media ? root.media.title : ""
       textFormat: Text.PlainText
       color: root.foregroundColor
-      font.family: Style.font.family
+      font.family: Commons.Style.font.family
       font.pixelSize: 11
       font.weight: Font.DemiBold
       elide: Text.ElideRight
@@ -153,7 +153,7 @@ Item {
             height: 3
             anchors.verticalCenter: parent.verticalCenter
             radius: 1.5
-            color: root.media && root.media.playing ? Color.accent : Color.muted
+            color: root.media && root.media.playing ? Commons.Color.accent : Commons.Color.muted
             SequentialAnimation on height {
               running: root.interactive && !root.reducedMotion && !root.expanded && !root.minimal && root.media && root.media.playing
               loops: Animation.Infinite
@@ -182,7 +182,7 @@ Item {
       anchors.topMargin: 12
       clip: true
 
-      Rectangle { anchors.fill: parent; radius: 12; color: Color.muted }
+      Rectangle { anchors.fill: parent; radius: 12; color: Commons.Color.muted }
       Rectangle { id: expandedArtMask; anchors.fill: parent; radius: 12; visible: false; layer.enabled: true }
 
       Image {
@@ -207,7 +207,7 @@ Item {
         height: 30
         visible: expandedArtImage.status !== Image.Ready
         ShapePath {
-          fillColor: Color.bar.background
+          fillColor: Commons.Color.bar.background
           strokeColor: "transparent"
           startX: 18
           startY: 2
@@ -216,7 +216,7 @@ Item {
           PathLine { x: 6; y: 8 }
           PathLine { x: 18; y: 2 }
         }
-        Rectangle { x: 18; y: 20; width: 9; height: 9; radius: 4.5; color: Color.bar.background }
+        Rectangle { x: 18; y: 20; width: 9; height: 9; radius: 4.5; color: Commons.Color.bar.background }
       }
     }
 
@@ -230,7 +230,7 @@ Item {
       text: root.media ? root.media.title : ""
       textFormat: Text.PlainText
       color: root.foregroundColor
-      font.family: Style.font.family
+      font.family: Commons.Style.font.family
       font.pixelSize: 14
       font.weight: Font.DemiBold
       elide: Text.ElideRight
@@ -245,8 +245,8 @@ Item {
       anchors.topMargin: 4
       text: root.subtitle
       textFormat: Text.PlainText
-      color: Color.muted
-      font.family: Style.font.family
+      color: Commons.Color.muted
+      font.family: Commons.Style.font.family
       font.pixelSize: 11
       elide: Text.ElideRight
       visible: text !== "" && !root.titleOwnedByBody
@@ -271,7 +271,7 @@ Item {
             height: 3
             anchors.verticalCenter: parent.verticalCenter
             radius: 1.5
-            color: root.media && root.media.playing ? Color.accent : Color.muted
+            color: root.media && root.media.playing ? Commons.Color.accent : Commons.Color.muted
             SequentialAnimation on height {
               running: root.interactive && !root.reducedMotion && root.expanded && root.media && root.media.playing
               loops: Animation.Infinite
@@ -299,7 +299,7 @@ Item {
         color: "transparent"
         radius: 4
         border.width: parent.activeFocus ? 1 : 0
-        border.color: Color.accent
+        border.color: Commons.Color.accent
       }
       Accessible.role: Accessible.Slider
       Accessible.name: "Playback position"
@@ -326,8 +326,8 @@ Item {
         anchors.top: parent.top
         text: root.hasTiming ? root.timeText(root.seeking ? root.seekPreview : root.media.positionSeconds)
           : root.media && root.media.playing ? "Playing" : "Paused"
-        color: Color.muted
-        font.family: Style.font.family
+        color: Commons.Color.muted
+        font.family: Commons.Style.font.family
         font.pixelSize: 10
       }
 
@@ -335,8 +335,8 @@ Item {
         anchors.right: parent.right
         anchors.top: parent.top
         text: root.hasTiming ? "−" + root.timeText(Math.max(0, root.media.durationSeconds - (root.seeking ? root.seekPreview : root.media.positionSeconds))) : ""
-        color: Color.muted
-        font.family: Style.font.family
+        color: Commons.Color.muted
+        font.family: Commons.Style.font.family
         font.pixelSize: 10
       }
 
@@ -347,14 +347,14 @@ Item {
         anchors.bottom: parent.bottom
         height: 3
         radius: 1.5
-        color: Color.muted
+        color: Commons.Color.muted
         visible: root.hasTiming
 
         Rectangle {
           width: parent.width * (root.hasTiming ? Math.max(0, Math.min(1, (root.seeking ? root.seekPreview : root.media.positionSeconds) / root.media.durationSeconds)) : 0)
           height: parent.height
           radius: parent.radius
-          color: Color.accent
+          color: Commons.Color.accent
         }
       }
 
@@ -420,7 +420,7 @@ Item {
             radius: width / 2
             color: "transparent"
             border.width: control.activeFocus ? 1 : 0
-            border.color: Color.accent
+            border.color: Commons.Color.accent
           }
 
           Shape {

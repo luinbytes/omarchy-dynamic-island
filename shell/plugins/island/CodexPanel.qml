@@ -1,10 +1,11 @@
 pragma ComponentBehavior: Bound
 
 import QtQuick
-import qs.Commons
+import qs.Commons as Commons
 
 Item {
   id: root
+  property color foregroundColor: Commons.Color.bar.text
 
   required property var usage
   property real headerRightInset: 32
@@ -64,8 +65,8 @@ Item {
         text: "Codex usage"
         textFormat: Text.PlainText
         elide: Text.ElideRight
-        color: Color.bar.text
-        font.family: Style.font.family
+        color: root.foregroundColor
+        font.family: Commons.Style.font.family
         font.pixelSize: 15
         font.weight: Font.DemiBold
       }
@@ -77,8 +78,8 @@ Item {
       text: root.snapshot.providerPresent ? "Codex Usage has no current limit data." : "Codex Usage is not available on this bar."
       textFormat: Text.PlainText
       wrapMode: Text.WordWrap
-      color: Color.muted
-      font.family: Style.font.family
+      color: Commons.Color.muted
+      font.family: Commons.Style.font.family
       font.pixelSize: 12
     }
 
@@ -92,7 +93,7 @@ Item {
         width: parent.width
         height: 38
         radius: 10
-        color: Qt.rgba(Color.bar.text.r, Color.bar.text.g, Color.bar.text.b, 0.055)
+        color: Qt.rgba(root.foregroundColor.r, root.foregroundColor.g, root.foregroundColor.b, 0.055)
 
         Text {
           anchors.left: parent.left
@@ -100,8 +101,8 @@ Item {
           anchors.verticalCenter: parent.verticalCenter
           text: "Session"
           textFormat: Text.PlainText
-          color: Color.muted
-          font.family: Style.font.family
+          color: Commons.Color.muted
+          font.family: Commons.Style.font.family
           font.pixelSize: 11
         }
 
@@ -111,8 +112,8 @@ Item {
           anchors.verticalCenter: parent.verticalCenter
           text: root.percent(root.snapshot.sessionUsed, "% used")
           textFormat: Text.PlainText
-          color: Color.bar.text
-          font.family: Style.font.family
+          color: root.foregroundColor
+          font.family: Commons.Style.font.family
           font.pixelSize: 13
           font.weight: Font.DemiBold
         }
@@ -122,7 +123,7 @@ Item {
         width: parent.width
         height: 38
         radius: 10
-        color: Qt.rgba(Color.bar.text.r, Color.bar.text.g, Color.bar.text.b, 0.055)
+        color: Qt.rgba(root.foregroundColor.r, root.foregroundColor.g, root.foregroundColor.b, 0.055)
 
         Text {
           anchors.left: parent.left
@@ -130,8 +131,8 @@ Item {
           anchors.verticalCenter: parent.verticalCenter
           text: "Weekly"
           textFormat: Text.PlainText
-          color: Color.muted
-          font.family: Style.font.family
+          color: Commons.Color.muted
+          font.family: Commons.Style.font.family
           font.pixelSize: 11
         }
 
@@ -141,8 +142,8 @@ Item {
           anchors.verticalCenter: parent.verticalCenter
           text: root.weeklyText()
           textFormat: Text.PlainText
-          color: Color.bar.text
-          font.family: Style.font.family
+          color: root.foregroundColor
+          font.family: Commons.Style.font.family
           font.pixelSize: 13
           font.weight: Font.DemiBold
         }
@@ -157,8 +158,8 @@ Item {
           anchors.verticalCenter: parent.verticalCenter
           text: "Pace"
           textFormat: Text.PlainText
-          color: Color.muted
-          font.family: Style.font.family
+          color: Commons.Color.muted
+          font.family: Commons.Style.font.family
           font.pixelSize: 10
         }
 
@@ -168,8 +169,8 @@ Item {
           anchors.verticalCenter: parent.verticalCenter
           text: root.paceMargin()
           textFormat: Text.PlainText
-          color: Color.muted
-          font.family: Style.font.family
+          color: Commons.Color.muted
+          font.family: Commons.Style.font.family
           font.pixelSize: 10
           visible: text !== ""
         }
@@ -180,8 +181,8 @@ Item {
           anchors.verticalCenter: parent.verticalCenter
           text: root.snapshot.pace || "Unavailable"
           textFormat: Text.PlainText
-          color: root.snapshot.paceState === "behind" ? Color.urgent : Color.bar.text
-          font.family: Style.font.family
+          color: root.snapshot.paceState === "behind" ? Commons.Color.urgent : root.foregroundColor
+          font.family: Commons.Style.font.family
           font.pixelSize: 10
           font.weight: Font.DemiBold
         }
@@ -192,8 +193,8 @@ Item {
         text: root.snapshot.reset ? "Resets " + root.snapshot.reset : "Reset time unavailable"
         textFormat: Text.PlainText
         elide: Text.ElideRight
-        color: Color.muted
-        font.family: Style.font.family
+        color: Commons.Color.muted
+        font.family: Commons.Style.font.family
         font.pixelSize: 10
       }
     }

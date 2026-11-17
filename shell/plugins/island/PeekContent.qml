@@ -1,12 +1,12 @@
 import QtQuick
-import qs.Commons
+import qs.Commons as Commons
 
 Item {
   id: root
 
   property var visual: null
   property var outline: null
-  property color foreground: Color.bar.text
+  property color foreground: Commons.Color.bar.text
   property bool interactive: false
   signal clicked()
 
@@ -67,7 +67,7 @@ Item {
           textFormat: Text.PlainText
           elide: Text.ElideRight
           color: root.foreground
-          font.family: Style.font.family
+          font.family: Commons.Style.font.family
           font.pixelSize: 12
           font.weight: Font.DemiBold
         }
@@ -77,8 +77,8 @@ Item {
           text: root.card.value || ""
           textFormat: Text.PlainText
           elide: Text.ElideRight
-          color: Color.muted
-          font.family: Style.font.family
+          color: Commons.Color.muted
+          font.family: Commons.Style.font.family
           font.pixelSize: 11
           visible: text !== ""
         }

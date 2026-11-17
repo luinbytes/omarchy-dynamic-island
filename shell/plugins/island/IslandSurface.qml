@@ -3,7 +3,7 @@ import QtQuick.Shapes
 import Quickshell
 import Quickshell.Hyprland
 import Quickshell.Wayland
-import qs.Commons
+import qs.Commons as Commons
 import "ActivityModel.js" as ActivityModel
 import "ViewModel.js" as ViewModel
 import "HubModel.js" as HubModel
@@ -26,9 +26,11 @@ PanelWindow {
   readonly property var screenMonitor: screen && typeof Hyprland.monitorFor === "function" ? Hyprland.monitorFor(screen) : null
   readonly property bool screenFullscreen: !!screenMonitor && !!screenMonitor.activeWorkspace
     && screenMonitor.activeWorkspace.hasFullscreen === true
+  readonly property var barState: bar && bar.shell ? bar.shell.bar : null
   readonly property bool presenterAvailable: !!anchorItem && anchorItem.visible && anchorItem.width > 0 && anchorItem.height > 0
-    && !!anchorWindow && !!anchorWindow.screen && !(bar && bar.barHidden) && !screenFullscreen
-  readonly property real barThickness: anchorWindow && anchorWindow.thickness !== undefined
+    && !!anchorWindow && anchorWindow.visible && !!anchorWindow.screen && !(barState ? barState.barHidden : bar && bar.barHidden) && !screenFullscreen
+  readonly property real barThickness: barState && typeof barState.barSizeFor === "function"
+    ? barState.barSizeFor(screenName) : anchorWindow && anchorWindow.thickness !== undefined
     ? anchorWindow.thickness : bar && bar.barSize ? bar.barSize : 0
   readonly property var activePeekContent: ViewModel.peekContent(service ? service.peekActive : null)
   readonly property var peekMeasurement: {
@@ -78,15 +80,24 @@ PanelWindow {
   readonly property var primaryRect: root.splitShape ? root.splitShape.primary : motion.visual.capsule.rect
   readonly property var capsuleOutline: ViewModel.barIslandOutline(root.primaryRect, root.metrics)
   readonly property var bubbleOutline: ViewModel.plainActivityOutline(root.splitShape ? root.splitShape.bubble : null)
-  readonly property color barBase: bar && bar.background !== undefined ? bar.background : Color.bar.background
-  readonly property color barInk: bar && bar.barForeground !== undefined ? bar.barForeground : Color.bar.text
-  readonly property bool glassy: !!(bar && bar.shell && bar.shell.barConfig && bar.shell.barConfig.background === "glassy")
+  readonly property color barBase: bar && bar.background !== undefined ? bar.background : Commons.Color.bar.background
+  readonly property color barInk: bar && bar.barForeground !== undefined ? bar.barForeground : Commons.Color.bar.text
+  readonly property string requestedLook: bar && bar.shell && bar.shell.barConfig
+    ? bar.shell.barConfig.background || (bar.shell.barConfig.transparent ? "none" : "opaque") : "opaque"
+  // The host holds its previous fill until the wallpaper foreground is ready.
+  property bool glassy: false
+  Binding on glassy {
+    when: root.requestedLook !== "none"
+    value: root.requestedLook === "glassy"
+    restoreMode: Binding.RestoreNone
+  }
   readonly property color capsuleFill: bar && bar.transparent ? "transparent" : root.glassy
     ? Qt.rgba(barBase.r, barBase.g, barBase.b, Math.min(barBase.a, 0.35)) : barBase
   readonly property var peekVisual: motion.visual.peek
   readonly property var peekOutline: root.closedPeekPresentation ? root.capsuleOutline
     : ViewModel.plainActivityOutline(root.peekVisual ? root.peekVisual.rect : null)
   readonly property bool peekInputActive: root.presenterAvailable && !!root.frame.peek && !!root.peekVisual && root.peekVisual.visible
+    && root.peekVisual.key === root.frame.peek.content.key && peekContent.contentInteractive
     && !!root.peekOutline && root.peekOutline.contentSafe !== false
   readonly property var firstInputOutline: root.closedPeekPresentation ? root.peekOutline
     : root.unifiedSurface ? root.capsuleOutline : bodyOne.outline
@@ -161,6 +172,13 @@ PanelWindow {
     return anchorItem && anchorItem.islandSuppressionLease === true ? anchorItem : null
   }
 
+  function setHoverSuppression(value) {
+    if (typeof bar.setCenterHoverRevealSuppressed === "function")
+      bar.setCenterHoverRevealSuppressed(value)
+    else
+      bar.centerHoverRevealSuppressed = value
+  }
+
   function settleCenterHoverSuppression(forceRelease) {
     if (!bar || !("centerHoverRevealSuppressed" in bar)) return
     var widgets = islandWidgets()
@@ -178,7 +196,7 @@ PanelWindow {
       return
     }
     if (owner) {
-      bar.centerHoverRevealSuppressed = owner.islandSuppressionBaseline === true
+      setHoverSuppression(owner.islandSuppressionBaseline === true)
       owner.islandSuppressionLease = false
     }
   }
@@ -199,7 +217,7 @@ PanelWindow {
         hovered.islandSuppressionLease = true
         owner.islandSuppressionLease = false
       }
-      bar.centerHoverRevealSuppressed = true
+      setHoverSuppression(true)
       return
     }
     if (!forceRelease) {
@@ -325,22 +343,28 @@ PanelWindow {
       },
       media: bodyOne.mediaDiagnostic() || bodyTwo.mediaDiagnostic(),
       theme: {
-        fontFamily: Style.font.family,
+        fontFamily: Commons.Style.font.family,
         background: String(root.capsuleFill),
         foreground: String(root.barInk),
-        accent: String(Color.accent)
+        accent: String(Commons.Color.accent)
       }
     }
   }
 
   screen: anchorWindow ? anchorWindow.screen : null
-  visible: !!anchorWindow && !!anchorWindow.screen
+  // Map after the host commits its strip. On the same layer the last mapped
+  // window receives the pointer in the part of the strip the island occupies.
+  visible: false
+  Binding on visible {
+    value: !!root.anchorWindow && root.anchorWindow.visible && !!root.anchorWindow.screen
+    delayed: true
+  }
   color: "transparent"
   exclusionMode: ExclusionMode.Ignore
   anchors { top: true; bottom: true; left: true; right: true }
 
   // Omarchy scopes its glass blur and alpha cutoff to the bar layer namespace.
-  WlrLayershell.namespace: root.glassy ? "omarchy-bar" : "luinbytes-island"
+  WlrLayershell.namespace: "omarchy-bar"
   WlrLayershell.layer: WlrLayer.Top
   WlrLayershell.keyboardFocus: presenterAvailable && opened ? (focusPrimed ? WlrKeyboardFocus.OnDemand : WlrKeyboardFocus.Exclusive) : WlrKeyboardFocus.None
 
@@ -426,7 +450,7 @@ PanelWindow {
   TextMetrics {
     id: peekTitleTextMetrics
     text: root.activePeekContent ? root.activePeekContent.label || "Activity" : ""
-    font.family: Style.font.family
+    font.family: Commons.Style.font.family
     font.pixelSize: 12
     font.weight: Font.DemiBold
   }
@@ -434,7 +458,7 @@ PanelWindow {
   TextMetrics {
     id: peekValueTextMetrics
     text: root.activePeekContent ? root.activePeekContent.value || "" : ""
-    font.family: Style.font.family
+    font.family: Commons.Style.font.family
     font.pixelSize: 11
     font.weight: Font.Normal
   }
@@ -467,7 +491,7 @@ PanelWindow {
       }
       var owner = root.islandSuppressionOwner(widgets)
       if (!owner) return
-      root.bar.centerHoverRevealSuppressed = owner.islandSuppressionBaseline === true
+      root.setHoverSuppression(owner.islandSuppressionBaseline === true)
       owner.islandSuppressionLease = false
     }
     function onCenterSectionRevealHeldChanged() {
@@ -544,6 +568,7 @@ PanelWindow {
       clip: true
 
       Item {
+        id: outsideBarCanvas
         x: -outsideBar.x
         y: -outsideBar.y
         Shape {
@@ -621,6 +646,7 @@ PanelWindow {
     ActivityVisual {
       id: bodyOne
       visible: !root.closedPeekPresentation
+      backgroundLayer: outsideBarCanvas
       backgroundVisible: !root.unifiedSurface
       islandSkin: root.unifiedSurface
       foreground: root.barInk
@@ -631,7 +657,7 @@ PanelWindow {
       interactive: !root.closedPeekPresentation && root.frame.visible && drawn && visual.role !== "retiring"
         && outline.contentSafe !== false
       reducedMotion: root.reducedMotion
-      detailHeightBudget: root.frame.detailHeightBudget
+      detailHeightBudget: root.frame.detailHeightBudget || 0
       outlineMetrics: root.metrics
       z: visual && visual.role === "expanded" ? 2 : 1
       onClicked: function(key) {
@@ -646,6 +672,7 @@ PanelWindow {
     ActivityVisual {
       id: bodyTwo
       visible: !root.closedPeekPresentation
+      backgroundLayer: outsideBarCanvas
       backgroundVisible: !root.unifiedSurface
       islandSkin: root.unifiedSurface
       foreground: root.barInk
@@ -656,7 +683,7 @@ PanelWindow {
       interactive: !root.closedPeekPresentation && root.frame.visible && drawn && visual.role !== "retiring"
         && outline.contentSafe !== false
       reducedMotion: root.reducedMotion
-      detailHeightBudget: root.frame.detailHeightBudget
+      detailHeightBudget: root.frame.detailHeightBudget || 0
       outlineMetrics: root.metrics
       z: visual && visual.role === "expanded" ? 2 : 1
       onClicked: function(key) {

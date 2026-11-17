@@ -1,13 +1,13 @@
 import QtQuick
 import QtQuick.Shapes
-import qs.Commons
+import qs.Commons as Commons
 
 Item {
   id: root
 
   property string name: ""
   property real size: 14
-  property color color: Color.bar.text
+  property color color: Commons.Color.bar.text
   property string fallbackText: ""
 
   implicitWidth: Math.max(1, root.size)
@@ -78,7 +78,7 @@ Item {
       ? root.fallbackText : "◦")
     textFormat: Text.PlainText
     color: root.color
-    font.family: Style.font.family
+    font.family: Commons.Style.font.family
     font.pixelSize: Math.max(1, root.size)
     horizontalAlignment: Text.AlignHCenter
     verticalAlignment: Text.AlignVCenter

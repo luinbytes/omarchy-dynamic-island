@@ -1,7 +1,7 @@
 import QtQuick
 import QtQuick.Effects
 import QtQuick.Shapes
-import qs.Commons
+import qs.Commons as Commons
 import "ViewModel.js" as ViewModel
 
 Item {
@@ -9,9 +9,10 @@ Item {
 
   property var visual: null
   property bool islandSkin: false
-  property color foreground: Color.bar.text
-  property color surfaceColor: Color.bar.background
+  property color foreground: Commons.Color.bar.text
+  property color surfaceColor: Commons.Color.bar.background
   property bool interactive: false
+  required property Item backgroundLayer
   property bool backgroundVisible: true
   property bool reducedMotion: false
   property var service: null
@@ -104,13 +105,18 @@ Item {
 
   Shape {
     id: capsuleBackground
-    visible: root.backgroundVisible
-    anchors.fill: parent
+    parent: root.backgroundLayer
+    visible: root.backgroundVisible && root.visible && root.drawn
+    opacity: root.opacity
+    x: root.x
+    y: root.y
+    width: root.width
+    height: root.height
     preferredRendererType: Shape.CurveRenderer
 
     ShapePath {
       fillColor: root.surfaceColor
-      strokeColor: root.visual && root.visual.alertOpacity > 0 ? Color.accent : "transparent"
+      strokeColor: root.visual && root.visual.alertOpacity > 0 ? Commons.Color.accent : "transparent"
       strokeWidth: root.visual && root.visual.alertOpacity > 0 ? 1 : -1
 
       PathSvg {
@@ -159,6 +165,7 @@ Item {
       active: !!root.service && !!root.visual && !!root.visual.outgoing && root.visual.outgoing.expanded && root.visual.outgoing.content.hub === true
       sourceComponent: Component {
         HubContent {
+          foregroundColor: root.foreground
           service: root.service
           screenName: root.screenName
           content: root.visual.outgoing.content
@@ -205,6 +212,7 @@ Item {
       active: !!root.service && !!root.visual && !!root.visual.incoming && root.visual.incoming.expanded && root.visual.incoming.content.hub === true
       sourceComponent: Component {
         HubContent {
+          foregroundColor: root.foreground
           service: root.service
           screenName: root.screenName
           content: root.visual.incoming.content
@@ -260,7 +268,7 @@ Item {
         width: 3
         height: 3
         radius: 1.5
-        color: Color.accent
+        color: Commons.Color.accent
         visible: !!root.visual && !!root.visual.incoming && !!root.visual.incoming.content.media && root.visual.incoming.content.media.playing === true
       }
     }
@@ -283,7 +291,7 @@ Item {
     clip: true
     z: 3
 
-    Rectangle { anchors.fill: parent; radius: parent.cornerRadius; color: Color.muted }
+    Rectangle { anchors.fill: parent; radius: parent.cornerRadius; color: Commons.Color.muted }
     Rectangle { id: sharedArtMask; anchors.fill: parent; radius: parent.cornerRadius; visible: false; layer.enabled: true }
     Image {
       id: sharedArtImage
@@ -317,9 +325,9 @@ Item {
       id: sharedArtFallback
       anchors.centerIn: parent
       text: "♪"
-      font.family: Style.font.family
+      font.family: Commons.Style.font.family
       font.pixelSize: Math.max(10, sharedArtwork.width * 0.6)
-      color: Color.bar.background
+      color: Commons.Color.bar.background
       opacity: root.sharedTitleTransition ? 1 - root.sharedTitleMix : 1
       visible: sharedArtImage.status !== Image.Ready
       z: 1
@@ -328,9 +336,9 @@ Item {
       id: incomingSharedArtFallback
       anchors.centerIn: parent
       text: "♪"
-      font.family: Style.font.family
+      font.family: Commons.Style.font.family
       font.pixelSize: Math.max(10, sharedArtwork.width * 0.6)
-      color: Color.bar.background
+      color: Commons.Color.bar.background
       opacity: root.sharedTitleTransition ? root.sharedTitleMix : 0
       visible: !!root.sharedTitleTransition && incomingSharedArtImage.status !== Image.Ready
       z: 1
@@ -339,7 +347,7 @@ Item {
 
   FontMetrics {
     id: compactTitleMetrics
-    font.family: Style.font.family
+    font.family: Commons.Style.font.family
     font.pixelSize: 11
     font.weight: Font.DemiBold
   }
@@ -348,14 +356,14 @@ Item {
     id: compactTitleProbe
     visible: false
     text: "Hg"
-    font.family: Style.font.family
+    font.family: Commons.Style.font.family
     font.pixelSize: 11
     font.weight: Font.DemiBold
   }
 
   FontMetrics {
     id: expandedTitleMetrics
-    font.family: Style.font.family
+    font.family: Commons.Style.font.family
     font.pixelSize: 14
     font.weight: Font.DemiBold
   }
@@ -369,7 +377,7 @@ Item {
     text: root.sharedTitle ? root.sharedTitle.text : ""
     textFormat: Text.PlainText
     color: root.foreground
-    font.family: Style.font.family
+    font.family: Commons.Style.font.family
     font.pixelSize: root.sharedTitleBackingSize
     font.weight: Font.DemiBold
     renderType: Text.QtRendering
@@ -389,7 +397,7 @@ Item {
     text: root.sharedTitleTransition ? root.sharedTitleTransition.incoming.text : ""
     textFormat: Text.PlainText
     color: root.foreground
-    font.family: Style.font.family
+    font.family: Commons.Style.font.family
     font.pixelSize: root.sharedTitleBackingSize
     font.weight: Font.DemiBold
     renderType: Text.QtRendering
@@ -409,8 +417,8 @@ Item {
     width: root.sharedTitleSample.visualWidth
     text: root.sharedSubtitle(root.sharedTitle)
     textFormat: Text.PlainText
-    color: Color.muted
-    font.family: Style.font.family
+    color: Commons.Color.muted
+    font.family: Commons.Style.font.family
     font.pixelSize: 11
     elide: Text.ElideRight
     opacity: root.sharedTitleTransition ? 1 - root.sharedTitleMix : 1
@@ -425,8 +433,8 @@ Item {
     width: sharedMediaSubtitle.width
     text: root.sharedTitleTransition ? root.sharedSubtitle(root.sharedTitleTransition.incoming) : ""
     textFormat: Text.PlainText
-    color: Color.muted
-    font.family: Style.font.family
+    color: Commons.Color.muted
+    font.family: Commons.Style.font.family
     font.pixelSize: 11
     elide: Text.ElideRight
     opacity: root.sharedTitleTransition ? root.sharedTitleMix : 0
@@ -440,7 +448,7 @@ Item {
     anchors.bottom: parent.bottom
     height: 2
     radius: 1
-    color: Color.accent
+    color: Commons.Color.accent
     visible: root.visual && root.visual.alertOpacity > 0
     opacity: visible ? root.visual.alertOpacity : 0
   }

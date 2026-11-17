@@ -1,5 +1,5 @@
 import QtQuick
-import qs.Commons
+import qs.Commons as Commons
 
 Item {
   id: root
@@ -23,12 +23,12 @@ Item {
   readonly property var centerDetails: root.details.center || ({})
   readonly property bool centerHasProgress: typeof root.centerDetails.progress === "number"
   readonly property bool showExpanded: root.expanded
-  property color primaryText: Color.bar.text
-  readonly property color secondaryText: Color.muted
-  readonly property color accent: Color.accent
-  readonly property color surface: Color.bar.background
-  readonly property color surfaceBorder: Color.bar.text
-  readonly property color onAccent: Color.bar.background
+  property color primaryText: Commons.Color.bar.text
+  readonly property color secondaryText: Commons.Color.muted
+  readonly property color accent: Commons.Color.accent
+  readonly property color surface: Commons.Color.bar.background
+  readonly property color surfaceBorder: Commons.Color.bar.text
+  readonly property color onAccent: Commons.Color.bar.background
 
   function mediaDiagnostic() {
     if (!root.isMedia || !root.compact.media) return null
@@ -84,7 +84,7 @@ Item {
       text: root.compactText || root.compact.label || root.compact.value || ""
       textFormat: Text.PlainText
       color: root.primaryText
-      font.family: Style.font.family
+      font.family: Commons.Style.font.family
       font.pixelSize: root.usesCompactText ? 10 : 11
       font.weight: Font.DemiBold
       elide: Text.ElideRight
@@ -99,7 +99,7 @@ Item {
       text: root.compact.value || ""
       textFormat: Text.PlainText
       color: root.secondaryText
-      font.family: Style.font.family
+      font.family: Commons.Style.font.family
       font.pixelSize: 10
       elide: Text.ElideRight
       maximumLineCount: 1
@@ -121,7 +121,7 @@ Item {
       text: root.details.leading ? root.details.leading.icon || root.compact.icon || "" : root.compact.icon || ""
       textFormat: Text.PlainText
       color: root.accent
-      font.family: Style.font.family
+      font.family: Commons.Style.font.family
       font.pixelSize: 24
       horizontalAlignment: Text.AlignHCenter
       elide: Text.ElideRight
@@ -137,7 +137,7 @@ Item {
       text: root.details.leading ? root.details.leading.label || root.compact.label || "" : root.compact.label || ""
       textFormat: Text.PlainText
       color: root.primaryText
-      font.family: Style.font.family
+      font.family: Commons.Style.font.family
       font.pixelSize: 13
       font.weight: Font.DemiBold
       elide: Text.ElideRight
@@ -151,7 +151,7 @@ Item {
       text: root.details.trailing ? root.details.trailing.value || root.compact.value || "" : root.compact.value || ""
       textFormat: Text.PlainText
       color: root.secondaryText
-      font.family: Style.font.family
+      font.family: Commons.Style.font.family
       font.pixelSize: 12
       horizontalAlignment: Text.AlignRight
       elide: Text.ElideRight
@@ -166,7 +166,7 @@ Item {
       text: root.centerDetails.label || ""
       textFormat: Text.PlainText
       color: root.secondaryText
-      font.family: Style.font.family
+      font.family: Commons.Style.font.family
       font.pixelSize: 11
       elide: Text.ElideRight
     }
@@ -180,7 +180,7 @@ Item {
       text: root.centerDetails.value || ""
       textFormat: Text.PlainText
       color: root.primaryText
-      font.family: Style.font.family
+      font.family: Commons.Style.font.family
       font.pixelSize: 14
       font.weight: Font.DemiBold
       elide: Text.ElideRight
@@ -214,7 +214,7 @@ Item {
       text: root.details.bottom ? root.details.bottom.label || root.details.bottom.value || "" : ""
       textFormat: Text.PlainText
       color: root.secondaryText
-      font.family: Style.font.family
+      font.family: Commons.Style.font.family
       font.pixelSize: 11
       elide: Text.ElideRight
       visible: text !== ""
@@ -268,7 +268,7 @@ Item {
             text: action.label
             textFormat: Text.PlainText
             color: action.role === "primary" ? root.onAccent : root.primaryText
-            font.family: Style.font.family
+            font.family: Commons.Style.font.family
             font.pixelSize: 10
             font.weight: Font.DemiBold
             horizontalAlignment: Text.AlignHCenter

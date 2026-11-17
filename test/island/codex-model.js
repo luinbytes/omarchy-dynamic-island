@@ -85,7 +85,7 @@ assert.doesNotMatch(service, /NotesRepository|\.refresh\(/,
   "the direct integration leaves saved Notes dormant and never refreshes the provider")
 assert.match(service, /codex: \{[\s\S]*providerPresent:[\s\S]*available:[\s\S]*sessionUsed:[\s\S]*weeklyUsed:[\s\S]*remaining:[\s\S]*paceState:/,
   "diagnostics expose only provider state and percentage fields")
-assert.match(hubContent, /id: codexLoader[\s\S]*CodexPanel \{ usage: root\.service\.codexUsage \}/,
+assert.match(hubContent, /id: codexLoader[\s\S]*CodexPanel \{[^}]*usage: root\.service\.codexUsage\s*\}/,
   "the Codex route owns a direct normalized usage panel")
 assert.doesNotMatch(hubContent, /NotesPanel|id: "notes"/, "Notes has no active loader or chooser route")
 assert.match(hubContent, /iconText: ""[\s\S]*ActivityIcon \{[\s\S]*name: chooserToolButton\.modelData\.icon[\s\S]*size: 14[\s\S]*fallbackText: ""/,

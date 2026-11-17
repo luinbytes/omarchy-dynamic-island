@@ -1,11 +1,12 @@
 pragma ComponentBehavior: Bound
 
 import QtQuick
-import qs.Commons
+import qs.Commons as Commons
 import qs.Ui as Ui
 
 Item {
   id: root
+  property color foregroundColor: Commons.Color.bar.text
 
   required property var service
   required property string screenName
@@ -100,6 +101,7 @@ Item {
     enabled: root.interactive && root.controlsEnabled
 
     MediaContent {
+      foregroundColor: root.foregroundColor
       id: mediaContent
       anchors.fill: parent
       visible: root.tool === "music" && !!root.content.media
@@ -127,8 +129,8 @@ Item {
       wrapMode: Text.WordWrap
       horizontalAlignment: Text.AlignHCenter
       textFormat: Text.PlainText
-      color: Color.muted
-      font.family: Style.font.family
+      color: Commons.Color.muted
+      font.family: Commons.Style.font.family
       font.pixelSize: 12
     }
 
@@ -136,21 +138,36 @@ Item {
       id: codexLoader
       anchors.fill: parent
       active: root.active && root.tool === "codex"
-      sourceComponent: Component { CodexPanel { usage: root.service.codexUsage } }
+      sourceComponent: Component {
+        CodexPanel {
+          foregroundColor: root.foregroundColor
+          usage: root.service.codexUsage
+        }
+      }
     }
 
     Loader {
       id: weatherLoader
       anchors.fill: parent
       active: root.active && root.tool === "weather"
-      sourceComponent: Component { WeatherPanel { store: root.service.weather } }
+      sourceComponent: Component {
+        WeatherPanel {
+          foregroundColor: root.foregroundColor
+          store: root.service.weather
+        }
+      }
     }
 
     Loader {
       id: agentsLoader
       anchors.fill: parent
       active: root.active && root.tool === "agents"
-      sourceComponent: Component { AgentsPanel { store: root.service.agents } }
+      sourceComponent: Component {
+        AgentsPanel {
+          foregroundColor: root.foregroundColor
+          store: root.service.agents
+        }
+      }
     }
 
     Loader {
@@ -159,6 +176,7 @@ Item {
       active: root.active && root.tool === "notifications"
       sourceComponent: Component {
         NotificationPanel {
+          foregroundColor: root.foregroundColor
           store: root.service.notifications
           content: root.content.notification || null
         }
@@ -171,6 +189,7 @@ Item {
       active: root.active && root.tool === "system"
       sourceComponent: Component {
         SystemPanel {
+          foregroundColor: root.foregroundColor
           store: root.service.systemActivity
           content: root.content.systemEvent || null
         }
@@ -200,8 +219,8 @@ Item {
           width: parent.width - 36
           text: "Open activity"
           textFormat: Text.PlainText
-          color: Color.bar.text
-          font.family: Style.font.family
+          color: root.foregroundColor
+          font.family: Commons.Style.font.family
           font.pixelSize: 14
           font.weight: Font.DemiBold
           elide: Text.ElideRight
@@ -228,7 +247,7 @@ Item {
           leftAlign: true
           leftPadding: chooserToolButton.horizontalPadding + 20
           selected: root.tool === modelData.id
-          foreground: Color.bar.text
+          foreground: root.foregroundColor
           fontSize: 11
           focusable: root.chooserSelectionEnabled
           enabled: root.chooserSelectionEnabled
@@ -244,7 +263,7 @@ Item {
             anchors.verticalCenter: parent.verticalCenter
             name: chooserToolButton.modelData.icon
             size: 14
-            color: Color.bar.text
+            color: root.foregroundColor
             fallbackText: ""
           }
         }
@@ -264,7 +283,7 @@ Item {
     visible: root.active && root.interactive
     enabled: visible && root.chooserNavigationEnabled
     text: root.chooserOpen ? "×" : "•••"
-    foreground: Color.bar.text
+    foreground: root.foregroundColor
     fontSize: 11
     focusable: visible
     tooltipText: root.chooserOpen ? "Close activity chooser" : "Open activity chooser"

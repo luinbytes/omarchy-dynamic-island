@@ -98,8 +98,8 @@ assert.match(serviceSource, /function eligiblePeekScreens\(\)[\s\S]*result\.push
   "one event targets every unique visible non-fullscreen Island")
 assert.match(source, /screenMonitor:[\s\S]*Hyprland\.monitorFor\(screen\)[\s\S]*screenFullscreen:[\s\S]*hasFullscreen/,
   "each surface reacts directly to its monitor fullscreen workspace")
-assert.match(source, /visible:\s*!!anchorWindow && !!anchorWindow\.screen[\s\S]*id:\s*capsule[\s\S]*visible:\s*root\.presenterAvailable/,
-  "the transparent layer stays mapped while hidden content disappears with the bar")
+assert.match(source, /Binding on visible \{\s*value: !!root\.anchorWindow && root\.anchorWindow\.visible && !!root\.anchorWindow\.screen\s*delayed: true[\s\S]*id:\s*capsule[\s\S]*visible:\s*root\.presenterAvailable/,
+  "the layer follows the host mapping and independently gates island content")
 assert.match(source, /onPresenterAvailableChanged:[\s\S]*motionCommitTimer\.stop\(\)[\s\S]*motion\.abandon\(\)[\s\S]*service\.collapse\("anchor-lost"\)/,
   "anchor loss clears pixels and releases an expanded owner without an exit animation")
 assert.match(serviceSource, /active\.expiresAt <= Date\.now\(\)/,
@@ -128,6 +128,10 @@ const context = vm.createContext(state)
 for (const match of source.matchAll(/^  function (\w+)\(([^\n]*)\) \{\n([\s\S]*?)^  \}/gm)) {
   state[match[1]] = vm.runInContext(`(function(${match[2]}) {\n${match[3]}\n})`, context)
 }
+// A 13.5 px shoulder ending on the host seam must stop there after snapping.
+const shoulder = { x: 744.5, y: 544.5, width: 13.5, height: 13.5 }
+assert.equal(Math.round(shoulder.x) + state.regionWidth(shoulder), 758)
+assert.equal(Math.round(shoulder.y) + state.regionHeight(shoulder), 558)
 state.expandKey = function(key, reason) {
   assert.equal(key, "primary")
   assert.equal(reason, "summon")
