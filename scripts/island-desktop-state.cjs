@@ -76,20 +76,33 @@ function watch(mode, dir) {
   }
   function schedule() { if (!timer) timer = setTimeout(publish, 200) }
   function connect() {
+    let attached = false
     for (const folder of downloads ? [dir] : [dir, path.join(dir,"history"), path.dirname(dir)]) {
-      if (watchers.has(folder)) continue
+      const existing = watchers.get(folder)
+      if (existing) {
+        let inode
+        try { inode = fs.statSync(folder).ino } catch { /* Removed or not mounted. */ }
+        if (inode === existing.inode) continue
+        existing.watcher.close()
+        watchers.delete(folder)
+        attached = true
+      }
       try {
         const watcher = fs.watch(folder, (_event, name) => {
+          if (!downloads && folder === path.dirname(dir) && name !== path.basename(dir) && name !== "notifications.json") return
           if (downloads) downloads.observe(name)
           schedule()
         })
-        watchers.set(folder, watcher)
+        watchers.set(folder, {watcher, inode: fs.statSync(folder).ino})
+        attached = true
         watcher.on("error", () => watcher.close())
-        watcher.on("close", () => watchers.delete(folder))
+        watcher.on("close", () => {
+          if (watchers.get(folder)?.watcher === watcher) watchers.delete(folder)
+        })
         if (downloads) downloads.baseline()
       } catch { /* A missing directory can appear after login. */ }
     }
-    publish()
+    if (attached || downloads || previous === undefined) publish()
   }
   connect()
   setInterval(connect, 5000)
