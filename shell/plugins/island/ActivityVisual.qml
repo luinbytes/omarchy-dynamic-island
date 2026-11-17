@@ -138,7 +138,7 @@ Item {
     y: root.visual && root.visual.outgoing ? root.visual.outgoing.offsetY || 0 : 0
     clip: true
     visible: !!root.visual && !!root.visual.outgoing
-    opacity: 1
+    opacity: visible ? root.visual.outgoing.opacity : 0
     enabled: false
 
     IslandContent {
@@ -182,7 +182,7 @@ Item {
     y: root.visual && root.visual.incoming ? root.visual.incoming.offsetY || 0 : 0
     clip: true
     visible: !!root.visual && !!root.visual.incoming
-    opacity: 1
+    opacity: visible ? root.visual.incoming.opacity : 0
 
     IslandContent {
       primaryText: root.foreground

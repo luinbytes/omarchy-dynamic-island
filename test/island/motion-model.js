@@ -117,6 +117,10 @@ const agentsExpandedBody = Object.assign(body("agents", agentsExpanded, "expande
 })
 state = motion.reconcile(motion.initialState(), intent(body("agents", agentsCompact, "primary"), null, { bounds: { width: 1920, height: 1080 } }), true)
 state = motion.reconcile(state, intent(agentsExpandedBody, null, { bounds: { width: 1920, height: 1080 } }), false)
+const openFrame = seconds => motion.renderFrame(motion.advance(state, seconds)).bodies[0]
+assert.equal(openFrame(0.05).incoming.opacity, 0, "the compact content leads the start of the opening")
+assert.ok(openFrame(0.1).incoming.opacity > 0 && openFrame(0.1).incoming.opacity < 1)
+assert.ok(openFrame(0.15).outgoing.opacity < openFrame(0.1).outgoing.opacity)
 state = tick(state, 2, 240)
 visual = motion.renderFrame(state).bodies[0]
 assert.equal(visual.geometrySettled, true, "the captured Agents expansion reaches its settled capsule pose")

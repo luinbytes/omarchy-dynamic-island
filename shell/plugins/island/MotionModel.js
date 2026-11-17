@@ -96,6 +96,16 @@ var PROFILES = {
   content: { omega: 10, zeta: 1 }
 }
 
+// islandcn pressExpand times. On desktop a click starts the transition immediately.
+var OPEN_CONTENT = {
+  enter: { delay: 0.056, omega: 2 * Math.PI / 0.36 },
+  exit: { delay: 0.026, omega: 2 * Math.PI / 0.28 }
+}
+
+function openContentProgress(elapsed, profile) {
+  return sampleSpring(0, 0, 1, profile.omega, 1, Math.max(0, elapsed - profile.delay)).value
+}
+
 var PEEK_CONTENT_PROFILE = { omega: 50, zeta: 1 }
 var PEEK_CONTENT_TRAVEL = 1
 
@@ -942,6 +952,7 @@ function setContent(body, desired) {
     body.outgoing = body.incoming
     body.incoming = { token: token, key: desired.key, content: desired.content, expanded: true, layout: copy(desired.rect) }
     body.geometryMorph = {
+      elapsed: 0,
       token: geometryMorphToken(desired),
       sourceRect: copyRect(desired.sourceRect),
       sourceCapsuleRect: copyRect(desired.sourceCapsuleRect),
@@ -1167,6 +1178,7 @@ function reconcile(previous, intent, reducedMotion) {
         axes[axisIndex].velocity = 0
       }
       body.outgoing = null
+      body.geometryMorph = null
     }
   }
   for (var bodyIndex = 0; bodyIndex < state.bodies.length; bodyIndex++) {
@@ -1218,6 +1230,7 @@ function advance(previous, seconds) {
     body.pose.radius = advanceAxis(body.pose.radius, delta)
     body.contentMix = advanceAxis(body.contentMix, delta)
     body.sharedTitle = advanceSharedTitle(body.sharedTitle, delta)
+    if (body.geometryMorph) body.geometryMorph.elapsed += delta
     if (body.geometryMorph && capsuleSettled(state.capsule)
         && capsuleProgress(state.capsule, state.edge, state.bounds) >= 0.999) {
       body.outgoing = null
@@ -1377,7 +1390,7 @@ function renderBody(body, capsule, edge, bounds, alerting, pulse) {
       content: body.incoming.content,
       expanded: body.incoming.expanded,
       layout: body.incoming.layout,
-      opacity: 1,
+      opacity: morph ? openContentProgress(morph.elapsed, OPEN_CONTENT.enter) : 1,
       blur: 0,
       offsetX: incomingOffset.x,
       offsetY: incomingOffset.y
@@ -1386,7 +1399,7 @@ function renderBody(body, capsule, edge, bounds, alerting, pulse) {
       content: body.outgoing.content,
       expanded: body.outgoing.expanded,
       layout: body.outgoing.layout,
-      opacity: 1,
+      opacity: morph ? 1 - openContentProgress(morph.elapsed, OPEN_CONTENT.exit) : 1,
       blur: 0,
       offsetX: outgoingOffset.x,
       offsetY: outgoingOffset.y
