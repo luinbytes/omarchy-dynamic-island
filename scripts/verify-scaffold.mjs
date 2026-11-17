@@ -137,6 +137,7 @@ if (run(process.execPath, ["test/island/codex-model.js"])) console.log("ok - dir
 if (run(process.execPath, ["test/island/codex-peek.js"])) console.log("ok - Codex usage peek thresholds")
 if (run(process.execPath, ["test/island/activity-icon.js"])) console.log("ok - semantic activity icons")
 if (run(process.execPath, ["test/island/hover-suppression.js"])) console.log("ok - native hover reveal suppression")
+if (run(process.execPath, ["test/island/desktop-state.js"])) console.log("ok - desktop download and notification sources")
 if (run(process.execPath, ["test/island/omapager-model.js"])) console.log("ok - Omapager notification integration")
 if (run(process.execPath, ["test/island/omapager-handoff.js"])) console.log("ok - Omapager popup handoff")
 if (run(process.execPath, ["test/island/taper-geometry.js"])) console.log("ok - rounded-tip geometry")

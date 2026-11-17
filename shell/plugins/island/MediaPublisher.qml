@@ -36,9 +36,13 @@ Item {
   property int playerInstanceEpoch: 0
   readonly property var players: {
     var list = sourcePlayers || []
-    return list.filter(function(player) { return player && (player.trackTitle || player.trackArtist) }).map(function(player) {
+    return list.filter(function(player) { return hasSession(player) }).map(function(player) {
       return { key: playerKey(player), label: String(player.identity || player.desktopEntry || "Media player"), playing: player.isPlaying === true }
     })
+  }
+
+  function hasSession(player) {
+    return !!player && !!(player.trackTitle || player.trackArtist || player.isPlaying)
   }
 
   function playerKey(player) {
@@ -51,7 +55,7 @@ Item {
     var firstPlaying = null
     for (var index = 0; index < list.length; index++) {
       var player = list[index]
-      if (!player || !(player.trackTitle || player.trackArtist)) continue
+      if (!hasSession(player)) continue
       if (selectedPlayerKey && playerKey(player) === selectedPlayerKey) return player
       if (player.isPlaying === true && !firstPlaying) firstPlaying = player
       if (!firstWithTrack) firstWithTrack = player
@@ -62,7 +66,7 @@ Item {
   function selectPlayer(key) {
     if (!enabled || typeof key !== "string" || key.length > 255) return false
     var player = playerForKey(key)
-    if (!player || !(player.trackTitle || player.trackArtist)) return false
+    if (!hasSession(player)) return false
     selectedPlayerKey = key
     schedule()
     return true
@@ -114,7 +118,7 @@ Item {
       playerKey: String(key),
       instanceEpoch: playerInstanceEpoch,
       uniqueId: player.uniqueId,
-      title: player.trackTitle || "",
+      title: player.trackTitle || (!player.trackArtist && player.isPlaying ? String(player.identity || "Media") : ""),
       artist: player.trackArtist || "",
       artUrl: player.trackArtUrl || "",
       isPlaying: player.isPlaying === true,
@@ -239,6 +243,8 @@ Item {
     function onCanSeekChanged() { root.schedule() }
     function onUniqueIdChanged() { root.schedule() }
     function onTrackArtUrlChanged() { root.schedule() }
+    function onTrackTitleChanged() { root.schedule() }
+    function onTrackArtistChanged() { root.schedule() }
     function onPostTrackChanged() { root.schedule() }
     function onPositionChanged() { root.schedule() }
     function onLengthChanged() { root.schedule() }

@@ -13,7 +13,7 @@ const metrics = View.screenMetrics({
 let state = Hub.initialState()
 let result = Hub.reconcile(state, {}, { nowMs: 1000 })
 state = result.state
-assert.deepEqual(Hub.TOOLS, ["music", "weather", "codex", "agents", "notifications", "system"],
+assert.deepEqual(Hub.TOOLS, ["music", "weather", "codex", "agents", "notifications", "system", "downloads"],
   "Codex replaces Notes in the active Hub route registry")
 assert.equal(result.schedule.primary.key, "hub:music", "a neutral Island remains reachable with no live source")
 assert.equal(result.schedule.reason, "neutral")

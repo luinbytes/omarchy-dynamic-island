@@ -22,6 +22,7 @@ Native captures from Omarchy with sample notification text and the installed sys
 
 | Activity | What you get |
 | --- | --- |
+| Downloads | Active browser transfers and recent completions in the desktop Downloads folder, with filename and bytes received. |
 | Music | Artwork, playback status, transport controls, and seeking through Quickshell's MPRIS player model. |
 | Agents | Working and attention states from an existing Herdr widget or opt-in Codex hooks. |
 | Notifications | Short live peeks, recent history, and provider-backed actions. Optional Omapager popup handoff avoids duplicate banners. |
@@ -144,7 +145,13 @@ Each available window can produce a five-second peek after a cumulative ten-perc
 
 Reset peeks require the provider's optional `weekly_reset_at` and `session_reset_at` fields. Providers without those fields still support usage-drop alerts. The local provider extension is separate from this repository.
 
+### Browser downloads
+
+Island follows Chromium-family `.crdownload` and Firefox `.part` files in the desktop’s configured Downloads directory. Start a download to see its filename and received size. A rename of the observed partial file marks completion. Removing a partial clears it. Recent completions stay in Downloads for one minute. Files saved directly, private browser temporary directories and custom per-download destinations can fall outside that view. Browsers do not publish a common total-size or pause/resume interface for these files.
+
 ### Notifications and Omapager
+
+On Omarchy versions that scope service access, Island follows Omarchy’s persisted live list, recent history and DND state. It supports both the current JSON lists and the older per-notification files. The desktop notification owns actions for this read-only path. Transient notifications that the desktop excludes from storage stay with its native renderer.
 
 Island uses the installed notification backend. With Omapager, it reads admitted live rows and bounded history, and revalidates notification keys before actions. Restored history does not become a new alert.
 

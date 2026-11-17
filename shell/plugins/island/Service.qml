@@ -1,3 +1,4 @@
+import QtCore
 import QtQuick
 import Quickshell
 import Quickshell.Hyprland
@@ -38,6 +39,7 @@ Item {
   property int presenterClaimsRevision: 0
   readonly property var nextWakeAt: root.earlierDeadline(root.activityNextWakeAt,
     root.earlierDeadline(root.hubNextWakeAt, root.peekNextWakeAt))
+  readonly property alias downloads: downloadStore
   readonly property alias music: mediaPublisher
   readonly property alias weather: weatherStore
   readonly property alias agents: agentStore
@@ -54,6 +56,7 @@ Item {
     agents: agentStore.snapshot,
     notifications: notificationStore.snapshot,
     notificationPreviewUntil: notificationStore.previewUntil,
+    downloads: downloadStore.snapshot,
     system: systemStore.snapshot,
     media: mediaPublisher.peekSourceSnapshot
   })
@@ -335,6 +338,12 @@ Item {
     return true
   }
 
+  DesktopSnapshot {
+    id: downloadStore
+    enabled: !root.fixturesEnabled
+    mode: "downloads"
+    directory: decodeURIComponent(StandardPaths.writableLocation(StandardPaths.DownloadLocation).toString().replace(/^file:\/\//, ""))
+  }
   WeatherStore { id: weatherStore }
   AgentStore {
     id: agentStore
@@ -512,6 +521,7 @@ Item {
           claimedScreens: root.omapagerAutomaticDisplayClaims.map(function(claim) { return claim.screenName })
         }
       },
+      downloads: { available: downloadStore.snapshot.available, active: downloadStore.snapshot.active.length, recent: downloadStore.snapshot.recent.length },
       codex: {
         providerPresent: root.codexUsage.providerPresent === true,
         available: root.codexUsage.available === true,

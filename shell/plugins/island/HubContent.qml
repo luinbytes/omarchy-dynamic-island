@@ -41,7 +41,7 @@ Item {
     && service.hubState.chooserOpen === true
   readonly property var activePanel: tool === "codex" ? codexLoader.item
     : tool === "weather" ? weatherLoader.item
-    : tool === "agents" ? agentsLoader.item
+    : tool === "downloads" ? downloadPanel : tool === "agents" ? agentsLoader.item
     : tool === "notifications" ? notificationLoader.item
     : tool === "system" ? systemLoader.item : null
   readonly property real panelPreferredHeight: {
@@ -100,6 +100,39 @@ Item {
     visible: root.active && !root.chooserOpen
     enabled: root.interactive && root.controlsEnabled
 
+    Column {
+      id: downloadPanel
+      width: parent.width
+      spacing: 6
+      visible: root.tool === "downloads"
+      readonly property var snapshot: root.service && root.service.downloads ? root.service.downloads.snapshot : ({})
+      readonly property var rows: (snapshot.active || []).concat(snapshot.recent || [])
+      readonly property real preferredHeight: implicitHeight
+      Text {
+        text: "Downloads"
+        color: root.foregroundColor
+        font.family: Commons.Style.font.family
+        font.weight: Font.DemiBold
+      }
+      Text {
+        visible: !downloadPanel.rows.length
+        text: downloadPanel.snapshot.available ? "No recent downloads" : "Downloads folder unavailable"
+        color: root.foregroundColor
+        font.family: Commons.Style.font.family
+      }
+      Repeater {
+        model: downloadPanel.rows.slice(0, 8)
+        delegate: Text {
+          required property var modelData
+          width: downloadPanel.width
+          text: (modelData.completed ? "✓ " : "↓ ") + modelData.name + " · " + Number(modelData.size / 1048576).toLocaleString(Qt.locale(), "f", 1) + " MiB"
+          textFormat: Text.PlainText
+          elide: Text.ElideMiddle
+          color: root.foregroundColor
+          font.family: Commons.Style.font.family
+        }
+      }
+    }
     MediaContent {
       foregroundColor: root.foregroundColor
       id: mediaContent
@@ -235,7 +268,8 @@ Item {
           { id: "codex", label: "Codex", icon: "codex" },
           { id: "agents", label: "Agents", icon: "robot" },
           { id: "notifications", label: "Notifications", icon: "bell" },
-          { id: "system", label: "System", icon: "CPU" }
+          { id: "system", label: "System", icon: "CPU" },
+          { id: "downloads", label: "Downloads", icon: "download" }
         ]
 
         delegate: Ui.Button {

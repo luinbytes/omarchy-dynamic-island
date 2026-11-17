@@ -1,4 +1,4 @@
-var TOOLS = ["music", "weather", "codex", "agents", "notifications", "system"]
+var TOOLS = ["music", "weather", "codex", "agents", "notifications", "system", "downloads"]
 var PAUSE_GRACE_MS = 15000
 var AGENT_TERMINAL_MS = 8000
 
@@ -50,7 +50,7 @@ function title(tool) {
 }
 
 function iconForTool(tool) {
-  return { music: "media", weather: "weather", codex: "codex", agents: "robot", notifications: "bell", system: "CPU" }[tool] || "◦"
+  return { music: "media", weather: "weather", codex: "codex", agents: "robot", notifications: "bell", downloads: "download", system: "CPU" }[tool] || "◦"
 }
 
 function emptySchedule() {
@@ -489,6 +489,20 @@ function reconcile(previous, sources, options) {
   byTool.agents = agentCard(Object.assign({}, agents, agentCounts))
   byTool.notifications = notificationsToolCard(notifications)
   byTool.system = systemToolCard(system)
+
+  var downloads = input.downloads || {}
+  var transfers = downloads.active || []
+  var recent = downloads.recent || []
+  var transfer = transfers[0] || recent[0]
+  var download = card("downloads", transfer ? transfer.name : "Downloads",
+    transfers.length ? (transfers.length > 1 ? transfers.length + " downloading" : "Downloading")
+    : transfer ? "Downloaded" : "No recent downloads", "download")
+  byTool.downloads = download
+  if (transfers.length) addCandidate(candidates, download, "busy", transfer.started, transfer.started, 0)
+  else if (transfer && nowMs < transfer.completed + 5000) {
+    addCandidate(candidates, download, "terminal", transfer.completed, transfer.completed, 0)
+    nextWakeAt = earlierWake(nextWakeAt, transfer.completed + 5000, nowMs)
+  }
 
   var activities = input.activitiesByKey && typeof input.activitiesByKey === "object" ? input.activitiesByKey : {}
   var activityKeys = Object.keys(activities)
