@@ -85,7 +85,7 @@ Ui.BarWidget {
   }
 
   HoverHandler {
-    enabled: root.visible && root.width > 0 && root.height > 0
+    enabled: root.visible && surface.frame.visible && root.width > 0 && root.height > 0
     onHoveredChanged: {
       root.islandBarPointerOver = hovered
       if (surface) surface.syncCenterHoverSuppression()

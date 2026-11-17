@@ -10,7 +10,7 @@ Item {
   property color foregroundColor: Commons.Color.bar.text
 
   required property var store
-  property real headerRightInset: 32
+  property real headerRightInset: 0
   property string panelMode: "summary"
   property int hourPage: 0
   property int searchPage: 0

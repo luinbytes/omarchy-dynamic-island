@@ -9,7 +9,7 @@ Item {
   property color foregroundColor: Commons.Color.bar.text
 
   required property var store
-  property real headerRightInset: 32
+  property real headerRightInset: 0
   property int page: 0
   property bool setupOpen: false
   readonly property var snapshot: store.snapshot

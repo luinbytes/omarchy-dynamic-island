@@ -64,7 +64,6 @@ const requiredFiles = [
   "test/island/peek-motion-order.js",
   "test/island/peek-lifecycle-order.js",
   "test/island/presentation-paint.js",
-  "test/island/chooser-input.js",
   "test/island/apple-motion-reference.json",
   "test/island/media-projection.js",
   "test/island/media-publisher.js",
@@ -149,7 +148,6 @@ if (run(process.execPath, ["test/island/presentation-gate.js"])) console.log("ok
 if (run(process.execPath, ["test/island/peek-motion-order.js"])) console.log("ok - interrupted peek motion")
 if (run(process.execPath, ["test/island/peek-lifecycle-order.js"])) console.log("ok - peek lifecycle interruption order")
 if (run(process.execPath, ["test/island/presentation-paint.js"])) console.log("ok - presentation paint ownership")
-if (run(process.execPath, ["test/island/chooser-input.js"])) console.log("ok - chooser navigation during motion")
 if (run(process.execPath, ["test/island/live-selection.js"])) console.log("ok - automatic activity lifecycle")
 if (run(process.execPath, ["test/island/agent-sources.js"])) console.log("ok - live agent sources")
 if (run(process.execPath, ["test/island/omp-hook.js"])) console.log("ok - OMP agent lifecycle")

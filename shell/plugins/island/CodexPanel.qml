@@ -8,7 +8,7 @@ Item {
   property color foregroundColor: Commons.Color.bar.text
 
   required property var usage
-  property real headerRightInset: 32
+  property real headerRightInset: 0
   readonly property var snapshot: usage && typeof usage === "object" ? usage : ({
     providerPresent: false,
     available: false,

@@ -10,7 +10,7 @@ Item {
 
   required property var store
   property var content: null
-  property real headerRightInset: 32
+  property real headerRightInset: 0
   property int page: 0
   readonly property string contentKey: content && typeof content === "object" ? String(content.key || "") : ""
   readonly property var snapshot: store ? store.snapshot : ({
@@ -55,6 +55,7 @@ Item {
         canInvoke: false,
         canDismiss: false
       })
+      return result
     }
     for (var sourceIndex = 0; sourceIndex < source.length; sourceIndex++) {
       if (source[sourceIndex].key !== selectedKey) result.push(source[sourceIndex])
@@ -123,6 +124,7 @@ Item {
 
     Item {
       width: parent.width
+      visible: !root.contentKey || root.pageCount > 1
       height: 28
 
       Text {
@@ -193,6 +195,7 @@ Item {
         }
 
         Ui.Button {
+          visible: !root.contentKey
           text: "↻"
           width: 26
           height: 24

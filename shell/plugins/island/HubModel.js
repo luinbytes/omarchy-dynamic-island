@@ -91,7 +91,6 @@ function initialState() {
     entityKey: "hub:music",
     ownerScreen: "",
     expanded: false,
-    chooserOpen: false,
     pendingRoute: null,
     retainedCard: null,
     layout: null,
@@ -111,14 +110,11 @@ function routeCard(previous, tool, key) {
   return Object.assign({}, selected, { key: key, tool: tool })
 }
 
-function prepareRoute(previous, tool, screen, entityKey, keepChooser) {
+function navigate(previous, tool, screen, entityKey) {
   if (TOOLS.indexOf(tool) < 0 || typeof screen !== "string" || !screen) return previous
   var scheduled = previous && previous.schedule && previous.schedule.byTool ? previous.schedule.byTool[tool] : null
   var key = typeof entityKey === "string" && entityKey ? entityKey : scheduled && scheduled.key ? scheduled.key : "hub:" + tool
-  if (previous.expanded && previous.tool === tool && previous.ownerScreen === screen && previous.entityKey === key) {
-    if (!previous.chooserOpen) return previous
-    return Object.assign({}, previous, { chooserOpen: false, pendingRoute: null, revision: previous.revision + 1 })
-  }
+  if (previous.expanded && previous.tool === tool && previous.ownerScreen === screen && previous.entityKey === key) return previous
   var pending = previous.pendingRoute
   if (pending && pending.tool === tool && pending.ownerScreen === screen && pending.entityKey === key) return previous
   return Object.assign({}, previous, {
@@ -128,34 +124,9 @@ function prepareRoute(previous, tool, screen, entityKey, keepChooser) {
       ownerScreen: screen,
       retainedCard: routeCard(previous, tool, key)
     },
-    chooserOpen: keepChooser === true && previous.chooserOpen === true,
     layoutError: "",
     revision: previous.revision + 1
   })
-}
-
-function navigate(previous, tool, screen, entityKey) {
-  return prepareRoute(previous, tool, screen, entityKey, false)
-}
-
-function toggleChooser(previous, screen) {
-  if (!previous || !previous.expanded || previous.ownerScreen !== screen) return previous
-  var open = previous.chooserOpen !== true
-  return Object.assign({}, previous, {
-    chooserOpen: open,
-    pendingRoute: null,
-    revision: previous.revision + 1
-  })
-}
-
-function closeChooser(previous, screen) {
-  if (!previous || previous.ownerScreen !== screen || previous.chooserOpen !== true) return previous
-  return Object.assign({}, previous, { chooserOpen: false, pendingRoute: null, revision: previous.revision + 1 })
-}
-
-function chooseTool(previous, tool, screen) {
-  if (!previous || previous.chooserOpen !== true || !previous.expanded || previous.ownerScreen !== screen) return previous
-  return prepareRoute(previous, tool, screen, "hub:" + tool, true)
 }
 
 function normalizeLayout(report) {
@@ -189,7 +160,6 @@ function acceptLayout(previous, rawReport) {
     if (pending.ownerScreen !== report.screen || pending.entityKey !== report.key) return previous
     if (report.preferredHeight > report.heightBudget) {
       return Object.assign({}, previous, {
-        chooserOpen: false,
         pendingRoute: null,
         layoutError: "content-too-tall",
         revision: previous.revision + 1
@@ -200,7 +170,6 @@ function acceptLayout(previous, rawReport) {
       entityKey: pending.entityKey,
       ownerScreen: pending.ownerScreen,
       expanded: true,
-      chooserOpen: false,
       pendingRoute: null,
       retainedCard: pending.retainedCard,
       layout: report,
@@ -213,7 +182,6 @@ function acceptLayout(previous, rawReport) {
     return Object.assign({}, previous, {
       ownerScreen: "",
       expanded: false,
-      chooserOpen: false,
       pendingRoute: null,
       layout: null,
       layoutError: "content-too-tall",
@@ -229,7 +197,6 @@ function collapse(previous) {
   return Object.assign({}, previous, {
     ownerScreen: "",
     expanded: false,
-    chooserOpen: false,
     pendingRoute: null,
     layoutError: "",
     revision: previous.revision + 1
@@ -592,10 +559,6 @@ function reconcile(previous, sources, options) {
     byTool.system = systemCandidates[0].content
   }
 
-  if (candidates.length === 0 && weather.ready === true && weather.status === "ready"
-      && weather.mode !== "unset" && weather.current) {
-    addCandidate(candidates, byTool.weather, "ambient", weather.fetchedAt, weather.fetchedAt, 0)
-  }
 
   for (var toolIndex = 0; toolIndex < TOOLS.length; toolIndex++) byKey["hub:" + TOOLS[toolIndex]] = byTool[TOOLS[toolIndex]]
   candidates.sort(candidateOrder)
@@ -694,7 +657,7 @@ function frameFor(hub, schedule, screenName, metrics, viewModel) {
     }, committed)
     secondary = null
   }
-  var phase = owner ? "expanded" : "compact"
+  var phase = owner ? "expanded" : committed.reason === "neutral" ? "idle" : "compact"
   var horizontal = metrics.bar.position === "top" || metrics.bar.position === "bottom"
   var pairedCompact = !!compactSecondary && horizontal
   if (!owner && horizontal) {
@@ -733,19 +696,18 @@ function frameFor(hub, schedule, screenName, metrics, viewModel) {
   return {
     phase: phase,
     alerting: false,
-    primary: primary,
+    primary: phase === "idle" ? null : primary,
     secondary: owner ? null : secondary,
     selected: owner ? primary : null,
     expanded: owner ? primary.expanded : null,
     isOwner: owner,
-    visible: true,
+    visible: phase !== "idle",
     geometry: geometry,
     titleCompactRect: titleCompactRect,
     titleExpandedRect: titleExpandedRect,
     preflight: preflight,
     detailHeightBudget: heightBudget,
     layoutReady: layoutReady,
-    chooserOpen: !!(owner && hub.chooserOpen),
     islandSkin: true,
     splitMinimal: !!secondary && !owner && !pairedCompact
   }
@@ -758,9 +720,6 @@ if (typeof module !== "undefined") module.exports = {
   initialState: initialState,
   emptySchedule: emptySchedule,
   navigate: navigate,
-  toggleChooser: toggleChooser,
-  closeChooser: closeChooser,
-  chooseTool: chooseTool,
   acceptLayout: acceptLayout,
   collapse: collapse,
   reconcile: reconcile,

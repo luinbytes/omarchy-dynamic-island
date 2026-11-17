@@ -806,7 +806,6 @@ function projectPeekFrame(frame, active, screenName, rawMetrics) {
     preflight: base.preflight || null,
     detailHeightBudget: finite(base.detailHeightBudget, 0),
     layoutReady: base.layoutReady === true,
-    chooserOpen: base.chooserOpen === true,
     peek: { content: content, rect: closed, placement: "closed", size: size, candidate: active.candidate }
   }
 }
@@ -995,7 +994,7 @@ function motionIntentFor(frame, rawMetrics) {
     splitGeometry: source.islandSkin && !expanded && primary && primaryRect
       ? { height: Math.min(primaryRect.width, primaryRect.height), gap: Math.min(metrics.gap, 8),
           vertical: metrics.bar.position === "left" || metrics.bar.position === "right" } : null,
-    capsule: capsuleRect ? {
+    capsule: primary && capsuleRect ? {
       mode: expanded ? "expanded" : compactPair ? "compactPair" : primaryRole,
       profile: expanded ? "expansion" : "compact",
       rect: capsuleRect

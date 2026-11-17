@@ -32,13 +32,6 @@ Item {
   readonly property bool secondaryUsesCompactText: !root.islandSkin && !!root.visual && root.visual.role === "secondary"
     && !!root.visual.incoming && !!root.visual.incoming.content && typeof root.visual.incoming.content.compactText === "string"
     && root.visual.incoming.content.compactText !== ""
-  readonly property bool hubNavigationInteractive: root.interactive && !!root.service && !!root.service.hubState
-    && root.service.hubState.expanded && root.service.hubState.ownerScreen === root.screenName
-    && !!root.visual && root.service.hubState.entityKey === root.visual.key
-    && !!root.visual.incoming && root.visual.incoming.expanded === true
-    && !!root.visual.incoming.content && root.visual.incoming.content.hub === true
-    && root.visual.incoming.content.key === root.visual.key
-  readonly property bool chooserOwnsHeader: root.hubNavigationInteractive && root.service.hubState.chooserOpen
   readonly property var sharedTitleSample: root.sharedTitle && root.sharedTitle.present
     ? ViewModel.titleSample(root.visual && root.visual.titleSampleRect ? root.visual.titleSampleRect : root.rect, root.sharedTitle)
     : ({ progress: 0, x: 0, visualWidth: 0 })
@@ -56,8 +49,6 @@ Item {
   readonly property real sharedTitleMix: root.sharedTitleTransition ? root.sharedTitleTransition.progress : 1
   readonly property bool sharedSubtitleVisible: root.sharedTitleVisible && root.sharedTitle && root.sharedTitle.target === "expanded"
   readonly property bool controlsInteractive: root.interactive && !!root.visual && root.visual.geometrySettled
-  readonly property bool chooserSelectionInteractive: root.chooserOwnsHeader
-  readonly property bool incomingInteractive: root.controlsInteractive || root.hubNavigationInteractive
 
   // Content scales about the edge it shares with the bar, matching the shape.
   function layerOrigin(layer) {
@@ -188,7 +179,7 @@ Item {
 
   Item {
     id: incomingLayer
-    enabled: root.incomingInteractive
+    enabled: root.controlsInteractive
     readonly property var layout: root.visual && root.visual.incoming ? root.visual.incoming.layout : ({ width: 0, height: 0 })
     width: Math.max(0, layout.width || 0)
     height: Math.max(0, layout.height || 0)
@@ -228,8 +219,6 @@ Item {
           content: root.visual.incoming.content
           interactive: root.interactive
           controlsEnabled: root.controlsInteractive
-          chooserNavigationEnabled: root.hubNavigationInteractive
-          chooserSelectionEnabled: root.chooserSelectionInteractive
           reducedMotion: root.reducedMotion
           titleOwnedByBody: !!root.sharedTitle && root.sharedTitle.owned === true
           artworkOwnedByBody: root.sharedArtworkOwned
@@ -296,7 +285,7 @@ Item {
       + (root.sharedTitle && root.sharedTitle.offsetY ? root.sharedTitle.offsetY : 0)
     width: Math.max(0, 16 + 36 * progress)
     height: width
-    visible: root.contentSafe && root.sharedArtworkOwned && !root.chooserOwnsHeader
+    visible: root.contentSafe && root.sharedArtworkOwned
     opacity: 1
     clip: true
     z: 3
@@ -395,7 +384,7 @@ Item {
     transformOrigin: Item.TopLeft
     scale: root.sharedTitleScale
     opacity: root.sharedTitleTransition ? 1 - root.sharedTitleMix : 1
-    visible: root.contentSafe && !root.chooserOwnsHeader && root.sharedTitleVisible && root.sharedTitleSample.visualWidth > 0
+    visible: root.contentSafe && root.sharedTitleVisible && root.sharedTitleSample.visualWidth > 0
     z: 3
   }
 
@@ -415,7 +404,7 @@ Item {
     transformOrigin: Item.TopLeft
     scale: root.sharedTitleScale
     opacity: root.sharedTitleTransition ? root.sharedTitleMix : 0
-    visible: root.contentSafe && !root.chooserOwnsHeader && root.sharedTitleVisible && !!root.sharedTitleTransition
+    visible: root.contentSafe && root.sharedTitleVisible && !!root.sharedTitleTransition
       && root.sharedTitleSample.visualWidth > 0
     z: 3
   }
@@ -432,7 +421,7 @@ Item {
     font.pixelSize: 11
     elide: Text.ElideRight
     opacity: root.sharedTitleTransition ? 1 - root.sharedTitleMix : 1
-    visible: root.contentSafe && !root.chooserOwnsHeader && root.sharedSubtitleVisible && text !== ""
+    visible: root.contentSafe && root.sharedSubtitleVisible && text !== ""
     z: 3
   }
 
@@ -448,7 +437,7 @@ Item {
     font.pixelSize: 11
     elide: Text.ElideRight
     opacity: root.sharedTitleTransition ? root.sharedTitleMix : 0
-    visible: root.contentSafe && !root.chooserOwnsHeader && root.sharedSubtitleVisible && !!root.sharedTitleTransition && text !== ""
+    visible: root.contentSafe && root.sharedSubtitleVisible && !!root.sharedTitleTransition && text !== ""
     z: 3
   }
 

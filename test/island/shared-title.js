@@ -10,7 +10,6 @@ const visual = fs.readFileSync(path.join(base, "ActivityVisual.qml"), "utf8")
 const content = fs.readFileSync(path.join(base, "IslandContent.qml"), "utf8")
 
 assert.equal((visual.match(/id:\s*sharedMediaTitle/g) || []).length, 1, "a body has one actual shared media title item")
-assert.match(visual, /hubNavigationInteractive:[\s\S]*?hubState\.ownerScreen === root\.screenName[\s\S]*?hubState\.entityKey === root\.visual\.key[\s\S]*?chooserOwnsHeader: root\.hubNavigationInteractive && root\.service\.hubState\.chooserOpen/, "chooser title ownership is scoped to the selected body and screen")
 assert.match(visual, /sharedTitleVisible:[\s\S]*?sharedTitle\.present[\s\S]*?sharedTitle\.owned === true/, "content layers own the header during cross-key handoffs")
 assert.match(visual, /secondaryUsesCompactText/, "a labelled secondary keeps the normal compact content renderer")
 assert.match(visual, /root\.visual\.role === "secondary" && !root\.secondaryUsesCompactText/, "fixture secondary bubbles keep the minimal renderer")

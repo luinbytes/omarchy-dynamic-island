@@ -138,7 +138,7 @@ PanelWindow {
   function expandKey(key, reason) {
     if (service && service.hubEntryVisible) {
       var content = frame.secondary && frame.secondary.key === key ? frame.secondary : frame.primary
-      return service.openHub(content ? content.tool : service.hubState.tool, screenName, key)
+      return !!content && content.key === key && service.openHub(content.tool, screenName, key)
     }
     var identity = identityFor(key)
     if (!service || !identity) return false
@@ -333,7 +333,6 @@ PanelWindow {
       keys: { primary: frame.primary ? frame.primary.key : "", secondary: frame.secondary ? frame.secondary.key : "", selected: frame.selected ? frame.selected.key : "" },
       hubLayout: {
         ready: frame.layoutReady === true,
-        chooserOpen: frame.chooserOpen === true,
         preferredHeight: service && service.hubState && service.hubState.layout ? service.hubState.layout.preferredHeight : 0,
         preflightKey: frame.preflight ? frame.preflight.key : ""
       },
@@ -551,7 +550,7 @@ PanelWindow {
     }
     Keys.onPressed: function(event) {
       if (event.key === Qt.Key_Escape) {
-        if (!root.service || !root.service.closeHubChooser(root.screenName)) root.close("escape")
+        root.close("escape")
         event.accepted = true
       }
     }

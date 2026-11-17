@@ -15,7 +15,7 @@ Item {
   property bool reducedMotion: false
   property bool titleOwnedByBody: false
   property bool artworkOwnedByBody: false
-  property real headerRightInset: 32
+  property real headerRightInset: 0
   property string sourceLabel: ""
   property bool canCyclePlayer: false
   readonly property bool minimal: !expanded && width < 64

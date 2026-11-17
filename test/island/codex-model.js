@@ -88,8 +88,6 @@ assert.match(service, /codex: \{[\s\S]*providerPresent:[\s\S]*available:[\s\S]*s
 assert.match(hubContent, /id: codexLoader[\s\S]*CodexPanel \{[^}]*usage: root\.service\.codexUsage\s*\}/,
   "the Codex route owns a direct normalized usage panel")
 assert.doesNotMatch(hubContent, /NotesPanel|id: "notes"/, "Notes has no active loader or chooser route")
-assert.match(hubContent, /iconText: ""[\s\S]*ActivityIcon \{[\s\S]*name: chooserToolButton\.modelData\.icon[\s\S]*size: 14[\s\S]*fallbackText: ""/,
-  "chooser semantics use the shared icon component without replacing native button input")
 
 const selectorMatch = service.match(/^  function codexUsageWidget\(\) \{\n([\s\S]*?)^  \}/m)
 assert.ok(selectorMatch, "Service owns one direct Codex usage widget selector")

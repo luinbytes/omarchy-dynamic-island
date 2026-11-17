@@ -231,7 +231,7 @@ assert.match(storeSource, /nowMs = Date\.now\(\)/, "deadlines use the actual com
 const panelSource = fs.readFileSync(require.resolve("../../shell/plugins/island/SystemPanel.qml"), "utf8")
 assert.match(panelSource, /required property var store/, "SystemPanel consumes only its store")
 assert.match(panelSource, /property var content: null/, "the selected activity can retain its exact system event")
-assert.match(panelSource, /property real headerRightInset: 32/, "the global ellipsis owns the upper-right inset")
+assert.match(panelSource, /property real headerRightInset: 0/, "the activity has the full header width")
 assert.match(panelSource, /readonly property real preferredHeight: Math\.ceil\(contentColumn\.implicitHeight\)/,
   "semantic content and font metrics own preferred height")
 assert.doesNotMatch(panelSource, /Flickable|ListView|ScrollView|WheelHandler/, "system pages never scroll")

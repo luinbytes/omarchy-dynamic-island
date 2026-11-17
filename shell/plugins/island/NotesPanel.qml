@@ -9,7 +9,7 @@ Item {
   id: root
 
   required property var repository
-  property real headerRightInset: 32
+  property real headerRightInset: 0
   readonly property var snapshot: repository ? repository.snapshot : ({ notes: [], selectedNote: null,
     selectedId: "", query: "", panelMode: "list", listPage: 0,
     editorSession: ({ page: 0, cursor: 0, anchor: 0 }), saveState: "loading", error: "", ready: false })

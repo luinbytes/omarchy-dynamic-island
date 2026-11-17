@@ -2,7 +2,6 @@ pragma ComponentBehavior: Bound
 
 import QtQuick
 import qs.Commons as Commons
-import qs.Ui as Ui
 
 Item {
   id: root
@@ -14,8 +13,6 @@ Item {
   property bool active: true
   property bool interactive: false
   property bool controlsEnabled: true
-  property bool chooserNavigationEnabled: false
-  property bool chooserSelectionEnabled: false
   property bool reducedMotion: false
   property bool titleOwnedByBody: false
   property bool artworkOwnedByBody: false
@@ -35,10 +32,6 @@ Item {
     }
     return ""
   }
-  readonly property bool chooserOpen: active && interactive && service && service.hubState
-    && service.hubState.expanded && service.hubState.ownerScreen === screenName
-    && service.hubState.entityKey === (content && content.key ? content.key : "")
-    && service.hubState.chooserOpen === true
   readonly property var activePanel: tool === "codex" ? codexLoader.item
     : tool === "weather" ? weatherLoader.item
     : tool === "downloads" ? downloadPanel : tool === "agents" ? agentsLoader.item
@@ -49,10 +42,9 @@ Item {
     return isFinite(value) && value > 0 ? value : 0
   }
   readonly property bool measurementReady: active && widthToken > 0 && preferredHeight > 0
-    && (chooserOpen || tool === "music" || panelPreferredHeight > 0)
+    && (tool === "music" || panelPreferredHeight > 0)
   readonly property real preferredHeight: {
     if (!active) return 0
-    if (chooserOpen) return chooserColumn.implicitHeight + 32
     if (tool === "music") return content && content.media
       ? mediaContent.preferredHeight : emptyMusic.implicitHeight + 64
     return panelPreferredHeight > 0 ? panelPreferredHeight + 32 : 0
@@ -97,7 +89,7 @@ Item {
     id: detailBody
     anchors.fill: parent
     anchors.margins: root.tool === "music" ? 0 : 12
-    visible: root.active && !root.chooserOpen
+    visible: root.active
     enabled: root.interactive && root.controlsEnabled
 
     Column {
@@ -145,7 +137,6 @@ Item {
       reducedMotion: root.reducedMotion
       titleOwnedByBody: root.titleOwnedByBody
       artworkOwnedByBody: root.artworkOwnedByBody
-      headerRightInset: 32
       sourceLabel: root.mediaSourceLabel
       canCyclePlayer: root.mediaPlayers.length > 1
       onActionRequested: function(actionId) { root.service.music.control(root.content.media.trackToken, actionId) }
@@ -229,107 +220,4 @@ Item {
       }
     }
   }
-
-  Item {
-    id: chooserBody
-    anchors.fill: parent
-    anchors.margins: 12
-    visible: root.chooserOpen
-    enabled: visible
-
-    Column {
-      id: chooserColumn
-      width: parent.width
-      spacing: 2
-
-      Item {
-        id: chooserHeader
-        width: parent.width
-        implicitHeight: Math.max(chooserHeaderText.implicitHeight, chooserButton.height)
-
-        Text {
-          id: chooserHeaderText
-          width: parent.width - 36
-          text: "Open activity"
-          textFormat: Text.PlainText
-          color: root.foregroundColor
-          font.family: Commons.Style.font.family
-          font.pixelSize: 14
-          font.weight: Font.DemiBold
-          elide: Text.ElideRight
-        }
-      }
-
-      Repeater {
-        id: chooserRepeater
-        model: [
-          { id: "music", label: "Music", icon: "media" },
-          { id: "weather", label: "Weather", icon: "weather" },
-          { id: "codex", label: "Codex", icon: "codex" },
-          { id: "agents", label: "Agents", icon: "robot" },
-          { id: "notifications", label: "Notifications", icon: "bell" },
-          { id: "system", label: "System", icon: "CPU" },
-          { id: "downloads", label: "Downloads", icon: "download" }
-        ]
-
-        delegate: Ui.Button {
-          id: chooserToolButton
-          required property var modelData
-          width: chooserColumn.width
-          text: modelData.label
-          iconText: ""
-          leftAlign: true
-          leftPadding: chooserToolButton.horizontalPadding + 20
-          selected: root.tool === modelData.id
-          foreground: root.foregroundColor
-          fontSize: 11
-          focusable: root.chooserSelectionEnabled
-          enabled: root.chooserSelectionEnabled
-          Accessible.role: Accessible.Button
-          Accessible.name: "Open " + modelData.label
-          Accessible.focusable: enabled
-          Accessible.onPressAction: if (enabled) root.service.chooseHubTool(modelData.id, root.screenName)
-          onClicked: root.service.chooseHubTool(modelData.id, root.screenName)
-
-          ActivityIcon {
-            anchors.left: parent.left
-            anchors.leftMargin: 7
-            anchors.verticalCenter: parent.verticalCenter
-            name: chooserToolButton.modelData.icon
-            size: 14
-            color: root.foregroundColor
-            fallbackText: ""
-          }
-        }
-      }
-    }
-  }
-
-  Ui.Button {
-    id: chooserButton
-    anchors.top: parent.top
-    anchors.right: parent.right
-    anchors.topMargin: 8
-    anchors.rightMargin: 10
-    width: 30
-    height: 26
-    z: 4
-    visible: root.active && root.interactive
-    enabled: visible && root.chooserNavigationEnabled
-    text: root.chooserOpen ? "×" : "•••"
-    foreground: root.foregroundColor
-    fontSize: 11
-    focusable: visible
-    tooltipText: root.chooserOpen ? "Close activity chooser" : "Open activity chooser"
-    Accessible.role: Accessible.Button
-    Accessible.name: tooltipText
-    Accessible.focusable: visible
-    Accessible.onPressAction: if (enabled) root.service.toggleHubChooser(root.screenName)
-    onClicked: root.service.toggleHubChooser(root.screenName)
-  }
-
-  onChooserOpenChanged: if (chooserOpen) Qt.callLater(function() {
-    var first = chooserRepeater.itemAt(0)
-    if (root.chooserOpen && first) first.forceActiveFocus()
-  })
 }

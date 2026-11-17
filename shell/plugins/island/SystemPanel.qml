@@ -10,7 +10,7 @@ Item {
 
   required property var store
   property var content: null
-  property real headerRightInset: 32
+  property real headerRightInset: 0
   property int page: 0
   readonly property string contentKey: content && typeof content === "object" ? String(content.key || "") : ""
   readonly property var snapshot: store ? store.snapshot : ({

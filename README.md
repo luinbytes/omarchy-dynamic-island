@@ -32,7 +32,7 @@ Native captures from Omarchy with sample notification text and the installed sys
 
 The live surface uses islandcn’s split and merge motion. A second activity pinches off into a small bubble. Clicking either activity opens its details. The bar paints the compact background itself. As the Island opens, its shoulders extend past the bar edge using the bar’s current color and opacity, including during theme changes. Glassy mode shares Omarchy’s bar blur rule.
 
-The compact Island follows current activity rather than a pinned tab. Click it for details, or use the ellipsis to choose another activity. Closing the detail returns to automatic selection. Longer lists use pages instead of scrolling inside the Island.
+The island appears when there is an activity. Click the song, transfer or alert to expand it in place. Click the original slot or press Escape to close it. When activities finish, the bar clears. You can open a specific panel with a key binding such as `omarchy-shell luinbytes.island open weather`.
 
 Important changes use a short live peek without opening the full detail view. If details are already open, notifications and requests for attention can appear beneath them. Track changes, playback toggles and agent starts or progress update quietly on the screen where you are reading. Peeks follow each monitor's presenter availability and fullscreen policy.
 
@@ -147,7 +147,7 @@ Reset peeks require the provider's optional `weekly_reset_at` and `session_reset
 
 ### Browser downloads
 
-Island follows Chromium-family `.crdownload` and Firefox `.part` files in the desktop’s configured Downloads directory. Start a download to see its filename and received size. Open Downloads from the activity chooser or bind `omarchy-shell luinbytes.island open downloads` to a key. The same command accepts `music` and `notifications`. A rename of the observed partial file marks completion. Removing a partial clears it. Recent completions stay in Downloads for one minute. Files saved directly, private browser temporary directories and custom per-download destinations can fall outside that view. Browsers do not publish a common total-size or pause/resume interface for these files.
+Island follows Chromium-family `.crdownload` and Firefox `.part` files in the desktop’s configured Downloads directory. Start a download to see its filename and received size. Click the transfer to expand it, or bind `omarchy-shell luinbytes.island open downloads` to a key. The same command accepts `music` and `notifications`. A rename of the observed partial file marks completion. Removing a partial clears it. Recent completions stay in Downloads for one minute. Files saved directly, private browser temporary directories and custom per-download destinations can fall outside that view. Browsers do not publish a common total-size or pause/resume interface for these files.
 
 ### Notifications and Omapager
 

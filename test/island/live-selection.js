@@ -91,7 +91,7 @@ assert.equal(weatherResult.schedule.secondary, null, "ambient weather does not f
 weatherResult = Hub.reconcile(Hub.initialState(), {
   weather: { ready: true, status: "ready", mode: "manual", current: { temperature: 12 }, icon: "☀", fetchedAt: 32000 }
 }, { nowMs: 32000 })
-assert.equal(weatherResult.schedule.primary.tool, "weather", "current configured weather is the ambient fallback")
+assert.equal(weatherResult.schedule.reason, "neutral", "weather stays available on demand while the bar is idle")
 weatherResult = Hub.reconcile(Hub.initialState(), {
   weather: { ready: true, status: "stale", mode: "manual", current: { temperature: 12 }, icon: "☀", fetchedAt: 1 }
 }, { nowMs: 32000 })
@@ -165,7 +165,7 @@ pausedWeatherSources.activitiesByKey = { player: mediaActivity("New track", fals
 result = Hub.reconcile(pausedWeatherState, pausedWeatherSources, { nowMs: 11000 })
 pausedWeatherState = result.state
 result = Hub.reconcile(pausedWeatherState, pausedWeatherSources, { nowMs: 26000 })
-assert.equal(result.schedule.primary.tool, "weather", "paused-media expiry returns ambient weather when work is absent")
+assert.equal(result.schedule.reason, "neutral", "paused-media expiry clears the bar when work is absent")
 
 const oldNotification = {
   key: "[1,2]",

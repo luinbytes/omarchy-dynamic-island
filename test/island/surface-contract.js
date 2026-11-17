@@ -6,6 +6,8 @@ const ActivityModel = require("../../shell/plugins/island/ActivityModel.js")
 const source = fs.readFileSync(require.resolve("../../shell/plugins/island/IslandSurface.qml"), "utf8")
 const serviceSource = fs.readFileSync(require.resolve("../../shell/plugins/island/Service.qml"), "utf8")
 const hubContentSource = fs.readFileSync(require.resolve("../../shell/plugins/island/HubContent.qml"), "utf8")
+assert.doesNotMatch(hubContentSource, /chooser|Open activity|•••/i, "expanded activities contain no tool launcher")
+assert.match(source, /event.key === Qt.Key_Escape[\s\S]*?root.close\("escape"\)/, "Escape dismisses the current activity directly")
 const activityVisualSource = fs.readFileSync(require.resolve("../../shell/plugins/island/ActivityVisual.qml"), "utf8")
 assert.match(source, /WlrLayershell\.layer:\s*WlrLayer\.Top/, "island shares the native bar layer and yields to fullscreen applications")
 assert.doesNotMatch(source, /WlrLayershell\.layer:\s*WlrLayer\.Overlay/, "island is not classified as a modal overlay")
@@ -13,14 +15,10 @@ assert.match(source, /id:\s*layoutPreflight[\s\S]*visible:\s*false[\s\S]*reportL
   "a pending route is measured before the first expanded motion")
 assert.match(source, /expected\.key !== key \|\| Math\.round\(widthToken\) !== expected\.widthToken/,
   "layout reports are guarded by exact key and target width")
-assert.match(source, /closeHubChooser\(root\.screenName\)[\s\S]*root\.close\("escape"\)/,
-  "Escape closes the chooser before collapsing its current activity")
 assert.equal((activityVisualSource.match(/reportLayout:\s*root\.interactive/g) || []).length, 1,
   "only the incoming interactive activity body reports local layout changes")
 assert.doesNotMatch(hubContentSource, /id:\s*toolRow|anchors\.bottomMargin:\s*root\.tool === "music" \? 78 : 48/,
   "expanded content has no permanent bottom navigation")
-assert.match(hubContentSource, /id:\s*chooserRepeater[\s\S]*\{ id: "music"[\s\S]*\{ id: "system"/,
-  "the transient chooser keeps all six tools reachable")
 assert.match(hubContentSource, /onContentKeyChanged:\s*layoutReportTimer\.restart\(\)/,
   "a same-size replacement identity publishes its own guarded layout")
 assert.match(hubContentSource, /onHeightBudgetChanged:\s*layoutReportTimer\.restart\(\)/,
@@ -49,20 +47,10 @@ assert.equal((activityVisualSource.match(/layer\.effect:/g) || []).length, 2,
   "both fixed-position artwork layers retain the shared rounded mask during a metadata fade")
 assert.equal((activityVisualSource.match(/layer\.effect: MultiEffect \{ maskEnabled: true; maskSource: sharedArtMask \}/g) || []).length, 2,
   "the image effects only mask the outgoing and incoming artwork corners")
-assert.match(activityVisualSource, /readonly property bool hubNavigationInteractive: root\.interactive[\s\S]*hubState\.ownerScreen === root\.screenName[\s\S]*hubState\.entityKey === root\.visual\.key[\s\S]*root\.visual\.incoming\.expanded === true[\s\S]*content\.hub === true[\s\S]*content\.key === root\.visual\.key/,
-  "only the current expanded Hub route can receive early navigation input")
-assert.match(activityVisualSource, /readonly property bool chooserSelectionInteractive: root\.chooserOwnsHeader[\s\S]*readonly property bool incomingInteractive: root\.controlsInteractive \|\| root\.hubNavigationInteractive[\s\S]*id: incomingLayer\s+enabled: root\.incomingInteractive/,
-  "Hub navigation is the sole exception to the settled content-input gate")
-assert.match(activityVisualSource, /controlsEnabled: root\.controlsInteractive\s+chooserNavigationEnabled: root\.hubNavigationInteractive\s+chooserSelectionEnabled: root\.chooserSelectionInteractive/,
-  "Hub navigation capabilities are passed separately from general controls")
-assert.match(hubContentSource, /property bool chooserSelectionEnabled: false[\s\S]*focusable: root\.chooserSelectionEnabled\s+enabled: root\.chooserSelectionEnabled/,
-  "only chooser rows become actionable during the bounded geometry morph")
 assert.match(activityVisualSource, /actionsEnabled: root\.controlsInteractive/,
   "ordinary activity actions retain the settled-geometry input gate")
 assert.match(hubContentSource, /id: detailBody[\s\S]*enabled: root\.interactive && root\.controlsEnabled/,
   "the chooser exception cannot enable the current detail body")
-assert.match(hubContentSource, /id: chooserButton[\s\S]*visible: root\.active && root\.interactive\s+enabled: visible && root\.chooserNavigationEnabled/,
-  "the current Hub can open its chooser before the geometry settles")
 assert.match(activityVisualSource, /outgoing\.offsetY[\s\S]*incoming\.offsetY/,
   "content replacement consumes the motion owner's signed vertical displacement")
 assert.match(activityVisualSource, /ViewModel\.titleSample\(root\.visual[\s\S]*titleSampleRect/,

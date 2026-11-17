@@ -136,7 +136,7 @@ assert.match(panelSource, /Weather data © Open-Meteo/, "weather attribution rem
 assert.match(panelSource, /snapshot\.hourly/, "the panel renders a real hourly outlook")
 assert.match(panelSource, /Style\.font\.family/, "the panel uses the system font")
 assert.match(panelSource, /readonly property real preferredHeight:/, "weather height follows the active bounded content")
-assert.match(panelSource, /property real headerRightInset: 32/, "weather reserves only its upper-right heading inset")
+assert.match(panelSource, /property real headerRightInset: 0/, "weather uses the full header width")
 assert.match(panelSource, /readonly property int hoursPerPage: 4/, "hourly pages fit four tiles")
 assert.match(panelSource, /readonly property int resultsPerPage: 3/, "location search is bounded to three rows")
 assert.match(panelSource, /panelMode = "settings"/, "weather controls stay behind an explicit settings mode")

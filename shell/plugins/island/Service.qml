@@ -87,27 +87,6 @@ Item {
     return true
   }
 
-  function toggleHubChooser(screen) {
-    var next = HubModel.toggleChooser(hubState, screen)
-    if (next === hubState) return false
-    hubState = next
-    return true
-  }
-
-  function closeHubChooser(screen) {
-    var next = HubModel.closeChooser(hubState, screen)
-    if (next === hubState) return false
-    hubState = next
-    return true
-  }
-
-  function chooseHubTool(tool, screen) {
-    var next = HubModel.chooseTool(hubState, tool, screen)
-    if (next === hubState) return false
-    hubState = next
-    return true
-  }
-
   function reportHubLayout(screen, key, widthToken, preferredHeight, expectedWidthToken, heightBudget) {
     var pending = root.hubState && root.hubState.pendingRoute ? root.hubState.pendingRoute : null
     var next = HubModel.acceptLayout(hubState, {
@@ -472,7 +451,6 @@ Item {
         tool: hubState.tool,
         entityKey: hubState.entityKey,
         expanded: hubState.expanded,
-        chooserOpen: hubState.chooserOpen === true,
         ownerScreen: hubState.ownerScreen,
         pendingKey: hubState.pendingRoute ? hubState.pendingRoute.entityKey : "",
         layout: hubState.layout ? {
@@ -595,7 +573,7 @@ Item {
 
     function open(tool: string): bool {
       if (!root.eligiblePeekScreen(root.focusedScreen) || HubModel.TOOLS.indexOf(tool) < 0) return false
-      if (root.hubState.expanded && root.hubState.tool === tool && root.hubState.ownerScreen === root.focusedScreen && !root.hubState.chooserOpen) return true
+      if (root.hubState.expanded && root.hubState.tool === tool && root.hubState.ownerScreen === root.focusedScreen) return true
       return root.openHub(tool, root.focusedScreen)
     }
 
